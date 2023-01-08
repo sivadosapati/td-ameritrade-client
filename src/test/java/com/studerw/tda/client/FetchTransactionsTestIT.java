@@ -36,7 +36,7 @@ public class FetchTransactionsTestIT extends BaseTestIT {
     TransactionRequest request = new TransactionRequest();
     final List<Transaction> transactions = this.httpTdaClient.fetchTransactions(getAccountId(), request);
     assertThat(transactions).isNotNull();
-    LOGGER.debug("{}", transactions);
+    LOGGER.info("{}", transactions);
   }
 
 

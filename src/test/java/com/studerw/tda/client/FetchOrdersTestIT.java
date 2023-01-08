@@ -61,7 +61,7 @@ public class FetchOrdersTestIT extends BaseTestIT {
     OrderRequest orderRequest = new OrderRequest();
     final List<Order> orders = this.httpTdaClient.fetchOrders(getAccountId(), orderRequest);
     assertThat(orders).isNotNull();
-    orders.forEach(o -> LOGGER.debug(o.toString()));
+    orders.forEach(o -> LOGGER.info(o.toString()));
   }
 
   @Test

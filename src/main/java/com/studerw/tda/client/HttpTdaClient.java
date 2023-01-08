@@ -369,6 +369,7 @@ public class HttpTdaClient implements TdaClient {
         .build();
 
     String json = DefaultMapper.toJson(order);
+    //System.out.println(json);
     RequestBody body = RequestBody.create(MediaType.parse("application/json"), json);
     Request request = new Request.Builder().url(url).
         headers(defaultHeaders())
