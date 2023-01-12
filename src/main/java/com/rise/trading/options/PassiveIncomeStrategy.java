@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 
@@ -12,6 +13,7 @@ import com.studerw.tda.model.account.Duration;
 import com.studerw.tda.model.account.EquityInstrument;
 import com.studerw.tda.model.account.Instrument.AssetType;
 import com.studerw.tda.model.account.OptionInstrument;
+import com.studerw.tda.model.account.OptionInstrument.PutCall;
 import com.studerw.tda.model.account.Order;
 import com.studerw.tda.model.account.OrderLegCollection;
 import com.studerw.tda.model.account.OrderLegCollection.Instruction;
@@ -25,6 +27,117 @@ import com.studerw.tda.model.option.OptionChainReq;
 import com.studerw.tda.model.option.OptionChainReq.Range;
 
 public class PassiveIncomeStrategy extends BaseHandler {
+	public static void main(String args[]) {
+		PassiveIncomeStrategy pis = new PassiveIncomeStrategy();
+		pis.placeClosingTradesForOptionsOnDailyExpiringOptions(Util.getAccountId4(),"QQQ");
+		pis.placeClosingTradesForEquityOnDailyExpiringOptions(Util.getAccountId4(),"QQQ");
+	}
+	
+	public void closeLongEquitiesIfTheyAreInProfitAndPlaceAnotherOrderIfThereAreSellOptions(String accountId, String ticker, double gainDollars, double incrementAmountFromCurrentStockPrice) {
+		GroupedPosition gp = getGroupedPosition(accountId,ticker);
+		if( gp == null) {
+			return;
+		}
+	}
+
+
+
+	public void placeClosingTradesForOptionsOnDailyExpiringOptions(String accountId, String stock) {
+
+		LocalDate day = getTheImmediateBusinessDay().toLocalDate();
+		GroupedPositions gps = getGroupedPositions(accountId);
+		List<Position> position = getOptionPositionsThatExpireOnThisDay(gps.getGroupedPosition(stock), day);
+		placeClosingTradesForOptionsOnDailyExpiringOptons(accountId, position);
+	}
+	
+	private void placeClosingTradesForOptionsOnDailyExpiringOptons(String accountId, List<Position> optionPositions) {
+		List<Position> position = optionPositions;
+		System.out.println(Util.toJSON(position));
+		List<Order> orders = getCurrentWorkingOrders(accountId);
+		// System.out.println(Util.toJSON(orders));
+		for (Position p : position) {
+			
+			List<Order> o = getWorkingOrderIfPresentForPosition(orders, p);
+			// System.out.println(Util.toJSON(o));
+			if (o.size() == 0) {
+				Order order = createPotentialClosingOrder(p);
+				if (order != null) {
+					getClient().placeOrder(accountId, order);
+				}
+			}
+		}	
+	}
+
+	public void placeClosingTradesForEquityOnDailyExpiringOptions(String accountId, String stock) {
+		LocalDate day = getTheImmediateBusinessDay().toLocalDate();
+		GroupedPositions gps = getGroupedPositions(accountId);
+		List<Position> position = getOptionPositionsThatExpireOnThisDay(gps.getGroupedPosition(stock), day);
+		placeClosingTradesForEquityOnDailyExpiringOptions(accountId, position, gps);
+	}
+	
+	private void placeClosingTradesForEquityOnDailyExpiringOptions(String accountId, List<Position> position, GroupedPositions gps) {
+		List<Order> orders = getCurrentWorkingOrders(accountId);
+		for (Position p : position) {
+			OptionInstrument oi = (OptionInstrument) p.getInstrument();
+			String us = oi.getUnderlyingSymbol();
+			GroupedPosition gp = gps.getGroupedPosition(us);
+			int contracts = p.getShortQuantity().intValue();
+			int stockCount = contracts * 100;
+			BigDecimal strikePrice = findStrikePrice(p.getInstrument().getSymbol(), getPutCallChar(oi.getPutCall()));
+			if (contracts > 0) {
+				if (oi.getPutCall() == PutCall.CALL) {
+					Position le = gp.getEquity();
+					if (le == null) {
+						placeLongStockOrderForPassiveIncome(accountId, us, strikePrice, stockCount);
+						continue;
+					}
+					List<Order> leo = getWorkingOrderIfPresentForPosition(orders, le);
+					if (leo.size() == 0) {
+						BigDecimal d = new BigDecimal(
+								rnd(strikePrice.doubleValue() - p.getAveragePrice().doubleValue() / 2));
+						Order o = makeStockOrder(us, d, stockCount, Instruction.SELL_TO_CLOSE, OrderType.STOP_LIMIT);
+						getClient().placeOrder(accountId, o);
+						continue;
+					}
+				}
+				if (oi.getPutCall() == PutCall.PUT) {
+					Position se = gp.getShortEquity();
+					if (se == null) {
+						placeShortStockOrderForPassiveIncome(accountId, us, strikePrice, stockCount);
+						continue;
+					}
+					List<Order> seo = getWorkingOrderIfPresentForPosition(orders, se);
+					if (seo.size() == 0) {
+						BigDecimal d = new BigDecimal(
+								rnd(strikePrice.doubleValue() + p.getAveragePrice().doubleValue() / 2));
+						Order o = makeStockOrder(us, d, stockCount, Instruction.BUY_TO_COVER, OrderType.STOP_LIMIT);
+						getClient().placeOrder(accountId, o);
+						continue;
+					}
+				}
+			}
+
+		}
+
+
+	}
+
+	private char getPutCallChar(PutCall pc) {
+		if (pc == PutCall.PUT) {
+			return 'P';
+		}
+		return 'C';
+	}
+
+	private Order createPotentialClosingOrder(Position p) {
+		double d = p.getAveragePrice().doubleValue();
+		return createClosingOrder(p, d * 5.0d, 0.01d);
+	}
+
+	private LocalDateTime getTheImmediateBusinessDay() {
+		return LocalDateTime.now().plusDays(findDaysToExpiration());
+
+	}
 
 	public void placeDailyTradeForPassiveIncome(String accountId, String stockTicker, float callDistance,
 			float putDistance, int numberOfContracts) {
@@ -45,40 +158,55 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		Order putOrder = createSellOrder(putOption, numberOfContracts);
 		System.out.println(Util.toJSON(callOrder));
 		System.out.println(Util.toJSON(putOrder));
+		client.placeOrder(accountId, callOrder);
 
 		int numberOfStocks = numberOfContracts * 100;
-		client.placeOrder(accountId, callOrder);
-		int numberOfStocksForLong = longStockOrderCanBePlaced(accountId, numberOfStocks, stockTicker);
-		if (numberOfStocksForLong > 0) {
-			Order longStockOrder = makeLongStockOrder(stockTicker, new BigDecimal(callPrice.doubleValue() - 0.5f),
-					numberOfStocksForLong);
-			client.placeOrder(accountId, longStockOrder);
-		}
+		placeLongStockOrderForPassiveIncome(accountId, stockTicker, callPrice, numberOfStocks);
 		client.placeOrder(accountId, putOrder);
+		placeShortStockOrderForPassiveIncome(accountId, stockTicker, putPrice, numberOfStocks);
+
+	}
+
+	private void placeShortStockOrderForPassiveIncome(String accountId, String stockTicker, BigDecimal stockPrice,
+			int numberOfStocks) {
+		HttpTdaClient client = getClient();
 		int numberOfStocksForShort = shortStockOrderCanBePlaced(accountId, numberOfStocks, stockTicker);
-		if( numberOfStocksForShort > 0) {
-			
-			Order putStockOrder = makePutStockOrder(stockTicker, new BigDecimal(putPrice.doubleValue() + 0.5f),
+		if (numberOfStocksForShort > 0) {
+
+			Order putStockOrder = makePutStockOrder(stockTicker, new BigDecimal(stockPrice.doubleValue() + 0.5f),
 					numberOfStocksForShort);
 			client.placeOrder(accountId, putStockOrder);
 		}
-	
-		
+	}
+
+	private void placeLongStockOrderForPassiveIncome(String accountId, String stockTicker, BigDecimal stockPrice,
+			int numberOfStocks) {
+		HttpTdaClient client = getClient();
+		int numberOfStocksForLong = longStockOrderCanBePlaced(accountId, numberOfStocks, stockTicker);
+		if (numberOfStocksForLong > 0) {
+			Order longStockOrder = makeLongStockOrder(stockTicker, new BigDecimal(stockPrice.doubleValue() - 0.5f),
+					numberOfStocksForLong);
+			client.placeOrder(accountId, longStockOrder);
+		}
 	}
 
 	private int shortStockOrderCanBePlaced(String accountId, int numberOfStocks, String stockTicker) {
 		PositionsHandler handler = new PositionsHandler();
 		GroupedPositions gps = handler.getGroupedPositions(accountId);
 		GroupedPosition gp = gps.getGroupedPosition(stockTicker);
+		if (gp == null) {
+			return numberOfStocks;
+		}
 		Position p = gp.getShortEquity();
-		if( p == null) {
+
+		if (p == null) {
 			return numberOfStocks;
 		}
 		double quantity = p.getShortQuantity().doubleValue();
-		if( quantity > numberOfStocks) {
+		if (quantity > numberOfStocks) {
 			return 0;
 		}
-		return (int)(numberOfStocks - quantity);
+		return (int) (numberOfStocks - quantity);
 
 	}
 
@@ -86,33 +214,37 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		PositionsHandler handler = new PositionsHandler();
 		GroupedPositions gps = handler.getGroupedPositions(accountId);
 		GroupedPosition gp = gps.getGroupedPosition(stockTicker);
+		if (gp == null) {
+			return numberOfStocks;
+		}
 		Position p = gp.getEquity();
-		if( p == null) {
+		if (p == null) {
 			return numberOfStocks;
 		}
 		double quantity = p.getLongQuantity().doubleValue();
-		if( quantity > numberOfStocks) {
+		if (quantity > numberOfStocks) {
 			return 0;
 		}
-		return (int)(numberOfStocks - quantity);
+		return (int) (numberOfStocks - quantity);
 
 	}
-	
-
 
 	private Order makePutStockOrder(String stockTicker, BigDecimal bigDecimal, int numberOfStocks) {
-		return makeStockOrder(stockTicker, bigDecimal, numberOfStocks, Instruction.SELL_SHORT);
+		return makeStockOrder(stockTicker, bigDecimal, numberOfStocks, Instruction.SELL_SHORT, OrderType.STOP_LIMIT);
 	}
 
-	private Order makeStockOrder(String stockTicker, BigDecimal price, int numberOfStocks, Instruction instruction) {
+	private Order makeStockOrder(String stockTicker, BigDecimal price, int numberOfStocks, Instruction instruction,
+			OrderType orderType) {
 		BigDecimal quantity = new BigDecimal(numberOfStocks);
 		Order order = new Order();
-		order.setOrderType(OrderType.STOP_LIMIT);
+		order.setOrderType(orderType);
 		order.setSession(Session.NORMAL);
 		order.setDuration(Duration.DAY);
 		order.setQuantity(quantity);
 		order.setPrice(price);
-		order.setStopPrice(price);
+		if (orderType == OrderType.STOP_LIMIT) {
+			order.setStopPrice(price);
+		}
 		order.setOrderStrategyType(OrderStrategyType.SINGLE);
 		// order.setComplexOrderStrategyType(ComplexOrderStrategyType.NONE);
 
@@ -131,9 +263,9 @@ public class PassiveIncomeStrategy extends BaseHandler {
 
 	}
 
-	private Order makeLongStockOrder(String stockTicker, BigDecimal callPrice, int numberOfStocks) {
+	private Order makeLongStockOrder(String stockTicker, BigDecimal stockPrice, int numberOfStocks) {
 
-		return makeStockOrder(stockTicker, callPrice, numberOfStocks, Instruction.BUY);
+		return makeStockOrder(stockTicker, stockPrice, numberOfStocks, Instruction.BUY, OrderType.STOP_LIMIT);
 	}
 
 	private Order createSellOrder(Option option, int numberOfContracts) {
@@ -204,10 +336,11 @@ public class PassiveIncomeStrategy extends BaseHandler {
 	}
 
 	private OptionChainReq makeOptionChainRequestForDailyTrade(String symbol) {
+		LocalDateTime to = getTheImmediateBusinessDay();
+		LocalDateTime from = to;
 		OptionChainReq req = OptionChainReq.Builder.optionChainReq().withSymbol(symbol)
 				// .withDaysToExpiration(findDaysToExpiration())
-				.withFromDate(LocalDateTime.now()).withToDate(LocalDateTime.now().plusDays(findDaysToExpiration()))
-				.withRange(Range.NTM)
+				.withFromDate(from).withToDate(to).withRange(Range.OTM)
 
 				.build();
 		return req;
@@ -222,11 +355,14 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
 			return 1;
 		}
+		LocalTime time = LocalTime.now();
+
+		// System.out.println(time.getHour());
+		// After 12 PM - pick the next day
+		if (time.getHour() > 12) {
+			return 1;
+		}
 		return 0;
 	}
 
-	public static void main(String args[]) {
-		
-		
-	}
 }

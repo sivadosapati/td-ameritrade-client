@@ -3,6 +3,7 @@ package com.rise.trading.options;
 import java.io.FileInputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,6 +31,17 @@ public class Util {
 			e.printStackTrace();
 			throw new RuntimeException(e);
 		}
+	}
+
+	public static boolean areEqualDates(LocalDateTime a, LocalDateTime b) {
+		if (a.getDayOfMonth() == b.getDayOfMonth()) {
+			if (a.getMonth() == b.getMonth()) {
+				if (a.getYear() == b.getYear()) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	public static Accounts fetchAccounts() {
@@ -93,11 +105,15 @@ public class Util {
 		return props.getProperty("account2.account.id");
 	}
 
+	public static String getAccountId4() {
+		return props.getProperty("account4.account.id");
+	}
+
 	public static String[] getAllAccounts() {
 		Account[] accounts = getAccounts().getAccounts();
-		String[] accountIds = new String[accounts.length] ;
+		String[] accountIds = new String[accounts.length];
 		int counter = 0;
-		for( Account a : accounts) {
+		for (Account a : accounts) {
 			accountIds[counter++] = a.id;
 		}
 		return accountIds;

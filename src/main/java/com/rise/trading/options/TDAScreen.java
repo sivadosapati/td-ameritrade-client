@@ -175,6 +175,8 @@ public class TDAScreen extends JFrame {
 		private JTextField putDistance = new JTextField(3);
 		private JPanel displayPanel;
 		private JButton placeOrder;
+		private JButton placeClosingOrdersForOptions;
+		private JButton placeClosingOrdersForEquities;
 		private PassiveIncomeStrategy strategy;
 
 		public PassiveIncomeStrategyComponent() {
@@ -184,18 +186,40 @@ public class TDAScreen extends JFrame {
 			callDistance.setText("2");
 			putDistance.setText("2");
 			placeOrder = new JButton("Passive Income");
-			displayPanel = new JPanel();
-			displayPanel.add(new JLabel("Stock Ticker : "));
-			displayPanel.add(stockTicker);
-			displayPanel.add(new JLabel("Number of Option Contracts : "));
-			displayPanel.add(numberOfContracts);
-			displayPanel.add(new JLabel("Call Distance from stock price : "));
-			displayPanel.add(callDistance);
-			displayPanel.add(new JLabel("Put Distance from stock price : "));
-			displayPanel.add(putDistance);
-			displayPanel.add(placeOrder);
+			placeClosingOrdersForOptions = new JButton("Place Closing Orders for Options");
+			placeClosingOrdersForEquities = new JButton("Place Closing Orders for Equities");
+			displayPanel = new JPanel(new GridLayout(2,1));
+			JPanel panel = new JPanel();
+			panel.add(new JLabel("Stock Ticker : "));
+			panel.add(stockTicker);
+			panel.add(new JLabel("Number of Option Contracts : "));
+			panel.add(numberOfContracts);
+			panel.add(new JLabel("Call Distance from stock price : "));
+			panel.add(callDistance);
+			panel.add(new JLabel("Put Distance from stock price : "));
+			panel.add(putDistance);
+			displayPanel.add(panel);
+			panel = new JPanel();
+			panel.add(placeOrder);
+			panel.add(placeClosingOrdersForOptions);
+			panel.add(placeClosingOrdersForEquities);
+			displayPanel.add(panel);
 			placeOrder.addActionListener((e) -> placePassiveIncomeOrders());
+			placeClosingOrdersForEquities.addActionListener((e) -> placeClosingOrdersForEquities());
+			placeClosingOrdersForOptions.addActionListener((e) -> placeClosingOrdersForOptions());
 
+		}
+
+		private void placeClosingOrdersForOptions() {
+			String accountId = ((Account) accounts.getSelectedItem()).id;
+			String stockCode = stockTicker.getText();
+			strategy.placeClosingTradesForOptionsOnDailyExpiringOptions(accountId, stockCode);
+		}
+
+		private void placeClosingOrdersForEquities() {
+			String accountId = ((Account) accounts.getSelectedItem()).id;
+			String stockCode = stockTicker.getText();
+			strategy.placeClosingTradesForEquityOnDailyExpiringOptions(accountId, stockCode);
 		}
 
 		private void placePassiveIncomeOrders() {

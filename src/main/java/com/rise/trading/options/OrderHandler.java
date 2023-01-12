@@ -30,7 +30,7 @@ import com.studerw.tda.model.option.OptionChainReq.Range;
 
 public class OrderHandler extends BaseHandler {
 
-	private PositionsHandler positionsManager = new PositionsHandler();
+
 
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
@@ -45,28 +45,6 @@ public class OrderHandler extends BaseHandler {
 		}
 	}
 
-	private List<Order> getCurrentWorkingOrders(String accountId) {
-		OrderRequest request = new OrderRequest();
-		List<Order> orders = getClient().fetchOrders(accountId, request);
-		List<Order> returnableOrders = new ArrayList<Order>();
-		for (Order order : orders) {
-			if (order.getStatus() == Status.REJECTED) {
-				continue;
-			}
-			if (order.getStatus() == Status.CANCELED) {
-				continue;
-			}
-			if (order.getStatus() == Status.FILLED) {
-				continue;
-			}
-			if (order.getStatus() == Status.EXPIRED) {
-				continue;
-			}
-
-			returnableOrders.add(order);
-		}
-		return returnableOrders;
-	}
 
 	public OptionChain getOptionChain(String symbol, OptionChainReq.ContractType contractType, LocalDateTime toDate,
 			Range range) {
@@ -79,7 +57,7 @@ public class OrderHandler extends BaseHandler {
 	}
 
 	public void placeClosingTradesOnShortOptions(String accountId) {
-		GroupedPositions gp = positionsManager.getGroupedPositions(accountId);
+		GroupedPositions gp = getGroupedPositions(accountId);
 		List<Order> orders = getCurrentWorkingOrders(accountId);
 		for (String symbol : gp.getSymbols()) {
 			GroupedPosition groupedPosition = gp.getGroupedPosition(symbol);
@@ -90,7 +68,7 @@ public class OrderHandler extends BaseHandler {
 
 	public void workOnOptionsAndTheirCorrespondingClosingOrder(String accountId,
 			ProcessExistingClosingOrderForOption existing, ProcessNoClosingOrderForOption nonExisting) {
-		GroupedPositions gp = positionsManager.getGroupedPositions(accountId);
+		GroupedPositions gp = getGroupedPositions(accountId);
 		List<Order> orders = getCurrentWorkingOrders(accountId);
 		for (String symbol : gp.getSymbols()) {
 			GroupedPosition groupedPosition = gp.getGroupedPosition(symbol);
@@ -169,12 +147,13 @@ public class OrderHandler extends BaseHandler {
 
 	}
 
-	private double rnd(double a) {
-		DecimalFormat format = new DecimalFormat("0.00");
-		return Double.parseDouble(format.format(a));
-	}
 
 	private Order createClosingOrder(Position position) {
+		double d = position.getAveragePrice().doubleValue();
+		return createClosingOrder(position, rnd(d * 1.5), rnd (d * 0.4) );
+	}
+	
+	private Order createClosingOrderOld(Position position) {
 		// BigDecimal callQuantity = new
 		// BigDecimal(gp.getNumberOfPotentialCoveredCallContracts());
 		OptionInstrument oi = (OptionInstrument) position.getInstrument();
