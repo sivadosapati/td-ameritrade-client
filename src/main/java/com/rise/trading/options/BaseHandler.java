@@ -115,6 +115,20 @@ public class BaseHandler {
 		}
 		return returnableOrders;
 	}
+	
+	public List<Order> getFilledOrders(String accountId){
+		OrderRequest request = new OrderRequest();
+		List<Order> orders = getClient().fetchOrders(accountId, request);
+		List<Order> returnableOrders = new ArrayList<Order>();
+		for (Order order : orders) {
+	
+			if (order.getStatus() == Status.FILLED) {
+				returnableOrders.add(order);
+			}
+
+		}
+		return returnableOrders;
+	}
 
 	public List<Order> getCurrentWorkingOrders(String accountId, LocalDate day) {
 		List<Order> orders = getCurrentWorkingOrders(accountId);
@@ -134,8 +148,9 @@ public class BaseHandler {
 	}
 
 	public List<Order> getWorkingOrderIfPresentForPosition(List<Order> workingOrders, Position p) {
+		//System.out.println(Util.toJSON(workingOrders));
 		List<Order> ro = new ArrayList<Order>();
-		Instrument ip = p.getInstrument();
+		//Instrument ip = p.getInstrument();
 		for (Order o : workingOrders) {
 			OrderLegCollection olc = o.getOrderLegCollection().iterator().next();
 			if (olc.getInstrument().getSymbol().equals(p.getInstrument().getSymbol())) {
@@ -154,6 +169,7 @@ public class BaseHandler {
 		String x = os.substring(os.lastIndexOf(putOrCallChar) + 1);
 		return new BigDecimal(x);
 	}
+	
 
 	protected Order createClosingOrder(Position position, double closingPriceForLongPosition,
 			double closingPriceForShortPosition) {

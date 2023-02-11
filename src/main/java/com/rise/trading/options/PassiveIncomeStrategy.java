@@ -29,18 +29,171 @@ import com.studerw.tda.model.option.OptionChainReq.Range;
 public class PassiveIncomeStrategy extends BaseHandler {
 	public static void main(String args[]) {
 		PassiveIncomeStrategy pis = new PassiveIncomeStrategy();
-		pis.placeClosingTradesForOptionsOnDailyExpiringOptions(Util.getAccountId4(),"QQQ");
-		pis.placeClosingTradesForEquityOnDailyExpiringOptions(Util.getAccountId4(),"QQQ");
+		// pis.placeClosingTradesForOptionsOnDailyExpiringOptions(Util.getAccountId4(),"QQQ");
+		// pis.placeClosingTradesForEquityOnDailyExpiringOptions(Util.getAccountId4(),"QQQ");
+		pis.closeShortEquitiesIfTheyAreInProfitAndPlaceAnotherOrderIfThereAreSellOptions(Util.getAccountId4(), "QQQ", 1,
+				0.5);
 	}
-	
-	public void closeLongEquitiesIfTheyAreInProfitAndPlaceAnotherOrderIfThereAreSellOptions(String accountId, String ticker, double gainDollars, double incrementAmountFromCurrentStockPrice) {
-		GroupedPosition gp = getGroupedPosition(accountId,ticker);
-		if( gp == null) {
+
+	public void closeSellOptionsThatAreInProfit(String accountId, String ticker, double gainPercentage) {
+		GroupedPosition gp = getGroupedPosition(accountId, ticker);
+
+		if (gp == null) {
+			return;
+		}
+		LocalDate day = getTheImmediateBusinessDay().toLocalDate();
+		List<Position> positions = getOptionPositionsThatExpireOnThisDay(gp, day);
+		if (positions.size() == 0) {
+			return;
+		}
+		Position sellCallOptionPosition = getSellOptionPosition(positions, PutCall.CALL);
+		if (sellCallOptionPosition == null) {
 			return;
 		}
 	}
 
+	public void closeShortEquitiesIfTheyAreInProfitAndPlaceAnotherOrderIfThereAreSellOptions(String accountId,
+			String ticker, double gainDollars, double decrementFromStrikePriceLowerThreshold) {
+		GroupedPosition gp = getGroupedPosition(accountId, ticker);
 
+		if (gp == null) {
+			return;
+		}
+		Position equity = gp.getShortEquity();
+		if (equity == null) {
+			return;
+		}
+		LocalDate day = getTheImmediateBusinessDay().toLocalDate();
+		List<Position> positions = getOptionPositionsThatExpireOnThisDay(gp, day);
+		if (positions.size() == 0) {
+			return;
+		}
+		double currentStockPrice = equity.getMarketValue().doubleValue() / equity.getShortQuantity().doubleValue();
+		PutCall pc = PutCall.PUT;
+		Position sellPutOptionPosition = getSellOptionPosition(positions, pc);
+		if (sellPutOptionPosition == null) {
+			return;
+		}
+		List<Order> filledOrders = getFilledOrders(accountId);
+		List<Order> filledOrderForEquity = getWorkingOrderIfPresentForPosition(filledOrders, equity);
+		if( filledOrderForEquity == null) {
+			return;
+		}
+		
+		BigDecimal optionStrikePrice = findStrikePrice(sellPutOptionPosition.getInstrument().getSymbol(),
+				getPutCallChar(pc));
+		final int numberOfStocks = sellPutOptionPosition.getShortQuantity().intValue() * 100;
+		if (currentStockPrice < optionStrikePrice.doubleValue() - gainDollars) {
+			System.out.println("Matched condition for closing the equity when it is trading higher");
+			cancelEquityWorkingOrderIfPresent(accountId, equity);
+
+			
+			Order order = makeStockOrder(ticker, new BigDecimal(currentStockPrice), numberOfStocks, Instruction.BUY_TO_COVER,
+					OrderType.MARKET);
+			getClient().placeOrder(accountId, order);
+			Order newOrder = makeStockOrder(ticker, new BigDecimal(currentStockPrice - decrementFromStrikePriceLowerThreshold),
+					numberOfStocks, Instruction.SELL_SHORT, OrderType.STOP_LIMIT);
+			getClient().placeOrder(accountId, newOrder);
+			return;
+		}
+		if (currentStockPrice >= optionStrikePrice.doubleValue() + decrementFromStrikePriceLowerThreshold) {
+			System.out.println("Triggered stop loss range for closing the position at loss");
+			
+			cancelEquityWorkingOrderIfPresent(accountId, equity);
+			
+			final Order order = makeStockOrder(ticker, new BigDecimal(currentStockPrice), numberOfStocks, Instruction.BUY_TO_COVER,
+					OrderType.MARKET);
+			getClient().placeOrder(accountId, order);
+			Order newOrder = makeStockOrder(ticker, new BigDecimal(optionStrikePrice.doubleValue()),
+					numberOfStocks, Instruction.SELL_SHORT, OrderType.STOP_LIMIT);
+			getClient().placeOrder(accountId, newOrder);
+			return;
+			
+			
+		}
+	}
+	
+	public void closeLongEquitiesIfTheyAreInProfitAndPlaceAnotherOrderIfThereAreSellOptions(String accountId,
+			String ticker, double gainDollars, double decrementFromStrikePriceLowerThreshold) {
+		GroupedPosition gp = getGroupedPosition(accountId, ticker);
+
+		if (gp == null) {
+			return;
+		}
+		Position equity = gp.getEquity();
+		if (equity == null) {
+			return;
+		}
+		LocalDate day = getTheImmediateBusinessDay().toLocalDate();
+		List<Position> positions = getOptionPositionsThatExpireOnThisDay(gp, day);
+		if (positions.size() == 0) {
+			return;
+		}
+		double currentStockPrice = equity.getMarketValue().doubleValue() / equity.getLongQuantity().doubleValue();
+		PutCall pc = PutCall.CALL;
+		Position sellCallOption = getSellOptionPosition(positions, pc);
+		if (sellCallOption == null) {
+			return;
+		}
+		List<Order> filledOrders = getFilledOrders(accountId);
+		List<Order> filledOrderForEquity = getWorkingOrderIfPresentForPosition(filledOrders, equity);
+		if( filledOrderForEquity == null) {
+			return;
+		}
+		
+		BigDecimal optionStrikePrice = findStrikePrice(sellCallOption.getInstrument().getSymbol(),
+				getPutCallChar(pc));
+		final int numberOfStocks = sellCallOption.getShortQuantity().intValue() * 100;
+		if (currentStockPrice >= optionStrikePrice.doubleValue() - gainDollars) {
+			System.out.println("Matched condition for closing the equity when it is trading higher");
+			cancelEquityWorkingOrderIfPresent(accountId, equity);
+
+			
+			Order order = makeStockOrder(ticker, new BigDecimal(currentStockPrice), numberOfStocks, Instruction.SELL_TO_CLOSE,
+					OrderType.MARKET);
+			getClient().placeOrder(accountId, order);
+			Order newOrder = makeStockOrder(ticker, new BigDecimal(currentStockPrice - decrementFromStrikePriceLowerThreshold),
+					numberOfStocks, Instruction.BUY_TO_OPEN, OrderType.STOP_LIMIT);
+			getClient().placeOrder(accountId, newOrder);
+			return;
+		}
+		if (currentStockPrice < optionStrikePrice.doubleValue() + decrementFromStrikePriceLowerThreshold) {
+			System.out.println("Triggered stop loss range for closing the position at loss");
+			
+			cancelEquityWorkingOrderIfPresent(accountId, equity);
+			
+			Order order = makeStockOrder(ticker, new BigDecimal(currentStockPrice), numberOfStocks, Instruction.SELL_TO_CLOSE,
+					OrderType.MARKET);
+			getClient().placeOrder(accountId, order);
+			Order newOrder = makeStockOrder(ticker, new BigDecimal(optionStrikePrice.doubleValue()),
+					numberOfStocks, Instruction.BUY_TO_OPEN, OrderType.STOP_LIMIT);
+			getClient().placeOrder(accountId, newOrder);
+			return;
+			
+			
+		}
+
+	}	
+	private void cancelEquityWorkingOrderIfPresent(String accountId, Position equity) {
+		List<Order> orders = getCurrentWorkingOrders(accountId);
+		List<Order> leo = getWorkingOrderIfPresentForPosition(orders, equity);
+		if (leo != null && leo.size() != 0) {
+			getClient().cancelOrder(accountId, leo.iterator().next().getOrderId() + "");
+		}
+	}
+
+	private Position getSellOptionPosition(List<Position> positions, PutCall pc) {
+
+		for (Position p : positions) {
+
+			int contracts = p.getShortQuantity().intValue();
+			OptionInstrument oi = (OptionInstrument) p.getInstrument();
+			if (contracts > 0 && oi.getPutCall() == pc) {
+				return p;
+			}
+		}
+		return null;
+	}
 
 	public void placeClosingTradesForOptionsOnDailyExpiringOptions(String accountId, String stock) {
 
@@ -49,14 +202,14 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		List<Position> position = getOptionPositionsThatExpireOnThisDay(gps.getGroupedPosition(stock), day);
 		placeClosingTradesForOptionsOnDailyExpiringOptons(accountId, position);
 	}
-	
+
 	private void placeClosingTradesForOptionsOnDailyExpiringOptons(String accountId, List<Position> optionPositions) {
 		List<Position> position = optionPositions;
 		System.out.println(Util.toJSON(position));
 		List<Order> orders = getCurrentWorkingOrders(accountId);
 		// System.out.println(Util.toJSON(orders));
 		for (Position p : position) {
-			
+
 			List<Order> o = getWorkingOrderIfPresentForPosition(orders, p);
 			// System.out.println(Util.toJSON(o));
 			if (o.size() == 0) {
@@ -65,7 +218,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 					getClient().placeOrder(accountId, order);
 				}
 			}
-		}	
+		}
 	}
 
 	public void placeClosingTradesForEquityOnDailyExpiringOptions(String accountId, String stock) {
@@ -74,8 +227,9 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		List<Position> position = getOptionPositionsThatExpireOnThisDay(gps.getGroupedPosition(stock), day);
 		placeClosingTradesForEquityOnDailyExpiringOptions(accountId, position, gps);
 	}
-	
-	private void placeClosingTradesForEquityOnDailyExpiringOptions(String accountId, List<Position> position, GroupedPositions gps) {
+
+	private void placeClosingTradesForEquityOnDailyExpiringOptions(String accountId, List<Position> position,
+			GroupedPositions gps) {
 		List<Order> orders = getCurrentWorkingOrders(accountId);
 		for (Position p : position) {
 			OptionInstrument oi = (OptionInstrument) p.getInstrument();
@@ -92,10 +246,10 @@ public class PassiveIncomeStrategy extends BaseHandler {
 						continue;
 					}
 					List<Order> leo = getWorkingOrderIfPresentForPosition(orders, le);
-					if (leo.size() == 0) {
+					if (!isOneOfTheOrderOfParticularInstruction(leo, Instruction.SELL)) {
 						BigDecimal d = new BigDecimal(
 								rnd(strikePrice.doubleValue() - p.getAveragePrice().doubleValue() / 2));
-						Order o = makeStockOrder(us, d, stockCount, Instruction.SELL_TO_CLOSE, OrderType.STOP_LIMIT);
+						Order o = makeStockOrder(us, d, stockCount, Instruction.SELL, OrderType.STOP_LIMIT);
 						getClient().placeOrder(accountId, o);
 						continue;
 					}
@@ -107,7 +261,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 						continue;
 					}
 					List<Order> seo = getWorkingOrderIfPresentForPosition(orders, se);
-					if (seo.size() == 0) {
+					if (!isOneOfTheOrderOfParticularInstruction(seo, Instruction.BUY_TO_COVER)) {
 						BigDecimal d = new BigDecimal(
 								rnd(strikePrice.doubleValue() + p.getAveragePrice().doubleValue() / 2));
 						Order o = makeStockOrder(us, d, stockCount, Instruction.BUY_TO_COVER, OrderType.STOP_LIMIT);
@@ -118,8 +272,16 @@ public class PassiveIncomeStrategy extends BaseHandler {
 			}
 
 		}
+	}
 
-
+	private boolean isOneOfTheOrderOfParticularInstruction(List<Order> orders, Instruction in) {
+		for (Order o : orders) {
+			Instruction i = o.getOrderLegCollection().iterator().next().getInstruction();
+			if (i == in) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private char getPutCallChar(PutCall pc) {
@@ -359,7 +521,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 
 		// System.out.println(time.getHour());
 		// After 12 PM - pick the next day
-		if (time.getHour() > 12) {
+		if (time.getHour() > 13) {
 			return 1;
 		}
 		return 0;

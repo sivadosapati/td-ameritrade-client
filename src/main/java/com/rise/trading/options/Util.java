@@ -1,13 +1,24 @@
 package com.rise.trading.options;
 
+import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
+import java.util.TimeZone;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studerw.tda.client.HttpTdaClient;
@@ -16,6 +27,58 @@ public class Util {
 
 	private static Properties props = fetchProperties();
 	private static Accounts accounts = fetchAccounts();
+
+	public static void main(String args[]) throws Exception {
+		playWithDates();
+	}
+	
+	public static String getEODToken() {
+		return props.getProperty("eod.api.token");
+	}
+
+	private static void playWithDates() throws Exception {
+		String ss = "6-11-2019";
+		DateTimeFormatter dtf = DateTimeFormatter.ofPattern("d-M-yyyy");
+		LocalDate x = LocalDate.parse(ss,dtf);
+		System.out.println(x);
+		
+		LocalDate ld = LocalDate.now();
+		// System.out.println(ld.);
+		DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+		String s = ld.format(df);
+		System.out.println(s);
+
+		df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+		sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
+		Date d = sdf.parse("2019-08-02 13:35:00");
+		System.out.println(d.getTime());
+
+		d = new Date(946713600 * 1000);
+		System.out.println(d);
+
+	}
+
+	public static List<String> readLinesFromURL(String url) {
+		try {
+			URL u = new URL(url);
+			BufferedReader in = new BufferedReader(new InputStreamReader(u.openStream()));
+			List<String> lines = new ArrayList<String>();
+			String inputLine;
+			while ((inputLine = in.readLine()) != null)
+				lines.add(inputLine);
+			in.close();
+			return lines;
+		} catch (MalformedURLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return new ArrayList<String>();
+	}
 
 	public static Properties getAccessProperties() {
 		return props;

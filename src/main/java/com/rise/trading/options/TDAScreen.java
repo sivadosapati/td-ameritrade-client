@@ -3,17 +3,20 @@ package com.rise.trading.options;
 import java.awt.Container;
 import java.awt.GridLayout;
 import java.io.ByteArrayOutputStream;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 
+import com.rise.trading.options.passive.income.backtest.HistoricalPricesFetcher;
 import com.studerw.tda.client.HttpTdaClient;
 
 public class TDAScreen extends JFrame {
@@ -32,6 +35,7 @@ public class TDAScreen extends JFrame {
 	private JButton positions;
 	private JComboBox accounts;
 
+	private HistoricalPricesComponent historicalPricesComponent;
 	private PassiveIncomeStrategyComponent passiveIncomeComponent;
 
 	private JTextArea summaryArea;
@@ -47,6 +51,7 @@ public class TDAScreen extends JFrame {
 		addListeners();
 		setSize(1200, 800);
 		setVisible(true);
+		pack();
 	}
 
 	private void addListeners() {
@@ -127,21 +132,32 @@ public class TDAScreen extends JFrame {
 
 	private void addComponents() {
 		Container con = new JPanel();
-		con.setLayout(new GridLayout(7, 1, 5, 5));
+		con.setLayout(new GridLayout(8, 1, 5, 5));
 		JPanel panel = new JPanel();
 		panel.add(new JLabel("Select Account : "));
 		panel.add(accounts);
 		con.add(panel);
-		con.add(coveredCallsButton);
-		con.add(cancelAllOpenOrders);
-		con.add(placeClosingTradesForOpenShortOptions);
-		con.add(placeLongCallsAndPutsForShortOptions);
-		con.add(rollOptionsIfAnyDuringTheLastHourOfExpiration);
+		addToContainerWithPanel(con, coveredCallsButton);
+		addToContainerWithPanel(con, cancelAllOpenOrders);
+		addToContainerWithPanel(con, placeClosingTradesForOpenShortOptions);
+		addToContainerWithPanel(con, placeLongCallsAndPutsForShortOptions);
+		addToContainerWithPanel(con, rollOptionsIfAnyDuringTheLastHourOfExpiration);
+		con.add(historicalPricesComponent.getDisplayableComponent());
 		con.add(passiveIncomeComponent.getDisplayPanel());
 
 		Container parent = getContentPane();
-		parent.add(con, "North");
-		parent.add(new JScrollPane(), "Center");
+		// parent.setLayout(new FlowLayout());
+		parent.add(con);
+		// parent.add(con, "North");
+
+		// parent.add(new JScrollPane(), "Center");
+	}
+
+	private void addToContainerWithPanel(Container con, JButton b) {
+		JPanel panel = new JPanel();
+		panel.add(b);
+		con.add(panel);
+
 	}
 
 	private void create() {
@@ -155,6 +171,7 @@ public class TDAScreen extends JFrame {
 		summaryArea = new JTextArea(40, 40);
 		accounts = new JComboBox<Account>(new DefaultComboBoxModel<Account>(Util.getAccounts().getAccounts()));
 		passiveIncomeComponent = new PassiveIncomeStrategyComponent();
+		historicalPricesComponent = new HistoricalPricesComponent();
 		try {
 			// System.setOut(new PrintStream(bos, true));
 		} catch (Exception e) {
@@ -177,6 +194,8 @@ public class TDAScreen extends JFrame {
 		private JButton placeOrder;
 		private JButton placeClosingOrdersForOptions;
 		private JButton placeClosingOrdersForEquities;
+		private JButton placeCloseShortEquitiesWhenTheyAreInExpectedProfitOrLoss;
+		private JButton placeCloseLongEquitiesWhenTheyAreInExpectedProfitOrLoss;
 		private PassiveIncomeStrategy strategy;
 
 		public PassiveIncomeStrategyComponent() {
@@ -188,7 +207,11 @@ public class TDAScreen extends JFrame {
 			placeOrder = new JButton("Passive Income");
 			placeClosingOrdersForOptions = new JButton("Place Closing Orders for Options");
 			placeClosingOrdersForEquities = new JButton("Place Closing Orders for Equities");
-			displayPanel = new JPanel(new GridLayout(2,1));
+			placeCloseShortEquitiesWhenTheyAreInExpectedProfitOrLoss = new JButton(
+					"Close Short Equities when they are in expected profit or loss");
+			placeCloseLongEquitiesWhenTheyAreInExpectedProfitOrLoss = new JButton(
+					"Close Long Equities when they are in expected profit or loss");
+			displayPanel = new JPanel(new GridLayout(3, 1));
 			JPanel panel = new JPanel();
 			panel.add(new JLabel("Stock Ticker : "));
 			panel.add(stockTicker);
@@ -204,10 +227,17 @@ public class TDAScreen extends JFrame {
 			panel.add(placeClosingOrdersForOptions);
 			panel.add(placeClosingOrdersForEquities);
 			displayPanel.add(panel);
+			panel = new JPanel();
+			panel.add(placeCloseShortEquitiesWhenTheyAreInExpectedProfitOrLoss);
+			panel.add(placeCloseLongEquitiesWhenTheyAreInExpectedProfitOrLoss);
+			displayPanel.add(panel);
 			placeOrder.addActionListener((e) -> placePassiveIncomeOrders());
 			placeClosingOrdersForEquities.addActionListener((e) -> placeClosingOrdersForEquities());
 			placeClosingOrdersForOptions.addActionListener((e) -> placeClosingOrdersForOptions());
-
+			placeCloseShortEquitiesWhenTheyAreInExpectedProfitOrLoss
+					.addActionListener((e) -> placeCloseShortEquitiesWhenTheyAreExpectedToBeInProfitOrLoss());
+			placeCloseLongEquitiesWhenTheyAreInExpectedProfitOrLoss
+					.addActionListener((e) -> placeCloseLongEquitiesWhenTheyAreExpectedToBeInProfitOrLoss());
 		}
 
 		private void placeClosingOrdersForOptions() {
@@ -220,6 +250,20 @@ public class TDAScreen extends JFrame {
 			String accountId = ((Account) accounts.getSelectedItem()).id;
 			String stockCode = stockTicker.getText();
 			strategy.placeClosingTradesForEquityOnDailyExpiringOptions(accountId, stockCode);
+		}
+
+		private void placeCloseShortEquitiesWhenTheyAreExpectedToBeInProfitOrLoss() {
+			String accountId = ((Account) accounts.getSelectedItem()).id;
+			String stockCode = stockTicker.getText();
+			strategy.closeShortEquitiesIfTheyAreInProfitAndPlaceAnotherOrderIfThereAreSellOptions(accountId, stockCode,
+					1.0d, 0.25d);
+		}
+
+		private void placeCloseLongEquitiesWhenTheyAreExpectedToBeInProfitOrLoss() {
+			String accountId = ((Account) accounts.getSelectedItem()).id;
+			String stockCode = stockTicker.getText();
+			strategy.closeLongEquitiesIfTheyAreInProfitAndPlaceAnotherOrderIfThereAreSellOptions(accountId, stockCode,
+					1.0d, 0.25d);
 		}
 
 		private void placePassiveIncomeOrders() {
@@ -240,6 +284,115 @@ public class TDAScreen extends JFrame {
 			return displayPanel;
 		}
 
+	}
+
+}
+
+class HistoricalPricesComponent {
+	private JTextField ticker;
+	private JTextField startDate;
+	private JTextField endDate;
+	private JButton fetchHistoricalPrices;
+	private JButton fetchHistoricalPricesFromEOD;
+
+	private JPanel panel;
+
+	public HistoricalPricesComponent() {
+		create();
+		addComponents();
+	}
+
+	private void create() {
+		ticker = new JTextField(10);
+		ticker.setText("QQQ");
+		startDate = new JTextField(10);
+		startDate.setText(getDate(-45));
+		endDate = new JTextField(10);
+		endDate.setText(getDate(0));
+		fetchHistoricalPrices = new JButton("Fetch Historical Prices by Minute");
+		fetchHistoricalPricesFromEOD = new JButton("Fetch HP from EOD");
+		panel = new JPanel();
+		Fetcher hf = new Fetcher() {
+
+			@Override
+			public void fetch(HistoricalPricesFetcher fetcher, String ticker, LocalDate start, LocalDate end)
+					throws Exception {
+				fetcher.fetchAndPotentialStoreHistoricalPrices(ticker, start);
+				
+			}
+			
+		};
+		fetchHistoricalPrices.addActionListener((e) -> fetchHistoricalPrices(hf));
+		Fetcher eod = new Fetcher() {
+
+			@Override
+			public void fetch(HistoricalPricesFetcher fetcher, String ticker, LocalDate start, LocalDate end)
+					throws Exception {
+				fetcher.fetchAndPotentialStoreHistoricalPricesEOD(ticker, start, end);
+				
+			}
+			
+		};
+		fetchHistoricalPricesFromEOD.addActionListener((e) -> fetchHistoricalPrices(eod));
+	}
+
+	
+	private String getDate(int distanceFromToday) {
+		// "2023-01-31" , yyyy-mm-dd
+		LocalDate start = LocalDate.now();
+		LocalDate end = start.plusDays(distanceFromToday);
+
+		return toDateString(end);
+	}
+
+	private String toDateString(LocalDate ld) {
+
+		DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+		String s = ld.format(df);
+		return s;
+	}
+
+	private void addComponents() {
+		addToPanel("Enter Ticker : ", ticker);
+		addToPanel("Enter Start Date : ", startDate);
+		addToPanel("Enter End Date : ", endDate);
+		panel.add(fetchHistoricalPrices);
+		panel.add(fetchHistoricalPricesFromEOD);
+	}
+
+	private void addToPanel(String string, JComponent component) {
+		panel.add(new JLabel(string));
+		panel.add(component);
+
+	}
+
+	public JPanel getDisplayableComponent() {
+		return panel;
+	}
+
+	private void fetchHistoricalPrices( Fetcher f) {
+		String ticker = this.ticker.getText();
+		LocalDate start = makeDate(this.startDate.getText());
+		LocalDate end = makeDate(this.endDate.getText());
+		System.out.println(start);
+		System.out.println(end);
+		HistoricalPricesFetcher hp = new HistoricalPricesFetcher();
+		try {
+			f.fetch(hp,ticker, start, end);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+	}
+	
+	
+
+	interface Fetcher {
+		void fetch(HistoricalPricesFetcher fetcher, String ticker, LocalDate start, LocalDate end)throws Exception;
+	}
+
+	private LocalDate makeDate(String text) {
+		return LocalDate.parse(text);
 	}
 
 }
