@@ -48,24 +48,45 @@ public class HistoricalPricesFetcher {
 	}
 
 	public HistoricalPricesForMultipleDays getHistoricalPrices(String ticker) {
+		return getHistoricalPrices(ticker, ((e) -> {
+			return true;
+		}));
+	}
+
+	private HistoricalPricesForMultipleDays getHistoricalPrices(String ticker, DayParser parser) {
 		String dir = DIRECTORY + "/" + ticker;
 		File d = new File(dir);
 		HistoricalPricesForMultipleDays hpmd = new HistoricalPricesForMultipleDays();
 		hpmd.ticker = ticker;
 		File f[] = d.listFiles();
 		for (File x : f) {
+			String name = x.getName();
+			if (parser.canParse(name) == false) {
+				continue;
+			}
 			HistoricalPricesForDay hpd = makeHistoricalPricesForDay(x, ticker);
-			if( hpd == null ) {
+			if (hpd == null) {
 				continue;
 			}
 
-			hpd.day = x.getName();
+			hpd.day = name;
 			hpmd.addHistoricalPricesForDay(x.getName(), hpd);
 
 		}
 
 		return hpmd;
+	}
 
+	public HistoricalPricesForMultipleDays getHistoricalPrices(String ticker, List<String> days) {
+		
+		return getHistoricalPrices(ticker, ((e) -> {
+			boolean b =  days.contains(e);
+			return b;
+		}));
+	}
+
+	interface DayParser {
+		boolean canParse(String fileName);
 	}
 
 	String HISTORICAL_API = "https://eodhistoricaldata.com/api/intraday/{0}.US?api_token={1}&interval=1m&from={2}&to={3}";
@@ -79,7 +100,8 @@ public class HistoricalPricesFetcher {
 		long end = start + (1000 * 60 * 60 * 24);
 		// long start = getUnixTimeStamp(year, month, 1);
 		// long end = getUnixTimeStamp(year, month+4, 1);
-		String URL = MessageFormat.format(HISTORICAL_API, ticker, Util.getEODToken(), (start / 1000) + "", (end / 1000) + "");
+		String URL = MessageFormat.format(HISTORICAL_API, ticker, Util.getEODToken(), (start / 1000) + "",
+				(end / 1000) + "");
 		System.out.println(URL);
 		return Util.readLinesFromURL(URL);
 	}

@@ -52,38 +52,39 @@ public class PassiveIncomeBackwardTestStrategy {
 	}
 
 	public List<TransactionSummary> getTransactionSummariesGroupedByBusinessWeek(String ticker) {
-		HistoricalPricesFetcher fetcher = new HistoricalPricesFetcher();
+
 		HistoricalPricesForMultipleDays md = fetcher.getHistoricalPrices(ticker);
 		Map<String, HistoricalPricesForDay> results = md.getPricesGroupedByBusinessWeeks();
-		List<TransactionSummary> summaries = new ArrayList<TransactionSummary>();
-		PrintStream out = null;
-		try {
-			out = new PrintStream(new FileOutputStream("/Users/sivad/aapl.csv"), true);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		for (String key : results.keySet()) {
-			// out.println("Week -> " + key);
-			HistoricalPricesForDay x = results.get(key);
-			// x.printToStream(out);
-			// System.out.println(key + " -> " + x.prices.size());
-			TransactionSummary summary = processTransactions(results.get(key));
-			if (summary == null) {
-				continue;
-			}
-			summary.totalGainOrLoss = summary.calculateTotalGainOrLoss();
-			summaries.add(summary);
-		}
-		return summaries;
+		return getTransactionSummaries(results);
 
 	}
 
+	public List<TransactionSummary> getTransactionSummariesGroupedByBusinessWeek(String ticker, List<String> dates) {
+
+		HistoricalPricesForMultipleDays md = fetcher.getHistoricalPrices(ticker, dates);
+		Map<String, HistoricalPricesForDay> results = md.getPricesGroupedByBusinessWeeks();
+		return getTransactionSummaries(results);
+
+	}
+
+	HistoricalPricesFetcher fetcher = new HistoricalPricesFetcher();
+
 	public List<TransactionSummary> getTransactionSummaries(String ticker) {
-		HistoricalPricesFetcher fetcher = new HistoricalPricesFetcher();
+
 		HistoricalPricesForMultipleDays md = fetcher.getHistoricalPrices(ticker);
+		return getTransactionSummaries(md.getHistoricalPricesMap());
+
+	}
+
+	public List<TransactionSummary> getTransactionSummaries(String ticker, List<String> days) {
+		HistoricalPricesForMultipleDays md = fetcher.getHistoricalPrices(ticker, days);
+		return getTransactionSummaries(md.getHistoricalPricesMap());
+	}
+
+	protected List<TransactionSummary> getTransactionSummaries(Map<String, HistoricalPricesForDay> map) {
 		List<TransactionSummary> summaries = new ArrayList<TransactionSummary>();
-		for (String key : md.historicalPricesMap.keySet()) {
-			TransactionSummary summary = processTransactions(md.historicalPricesMap.get(key));
+		for (String key : map.keySet()) {
+			TransactionSummary summary = processTransactions(map.get(key));
 			if (summary == null) {
 				continue;
 			}
@@ -91,7 +92,11 @@ public class PassiveIncomeBackwardTestStrategy {
 			summaries.add(summary);
 		}
 		return summaries;
+	}
 
+	private LocalDate parseDate(String date) {
+		DateTimeFormatter df = DateTimeFormatter.ofPattern("d-MM-yyyy");
+		return LocalDate.parse(date, df);
 	}
 
 	public TransactionSummary processTransactions(HistoricalPricesForDay day) {
@@ -104,7 +109,7 @@ public class PassiveIncomeBackwardTestStrategy {
 		if (prices.size() == 0)
 			return null;
 		TransactionSummary summary = new TransactionSummary();
-		summary.date = day.day;
+		summary.date = parseDate(day.day);
 		summary.ticker = day.ticker;
 		OptionTransaction callTransaction = null;
 		OptionTransaction putTransaction = null;
@@ -122,9 +127,14 @@ public class PassiveIncomeBackwardTestStrategy {
 			end = minute;
 			if (callTransaction == null) {
 				callTransaction = makeSellCallTransaction(minute);
+				// continue;
 			}
 			if (putTransaction == null) {
 				putTransaction = makeSellPutTransaction(minute);
+				// continue;
+			}
+			if (begin == minute) {
+				continue;
 			}
 			StockTransaction callResponse = identifyStockTransactionForCall(minute, stockTransactionForCall,
 					callTransaction);
@@ -202,18 +212,38 @@ public class PassiveIncomeBackwardTestStrategy {
 
 	}
 
-	private double findCallGainOrLoss(double close, double callStrikePrice) {
+	private double findCallGainOrLossOld(double close, double callStrikePrice) {
 		if (close < callStrikePrice) {
 			return 0;
 		}
 		return close - callStrikePrice;
 	}
 
-	private double findPutGainOrLoss(double close, double putStrikePrice) {
+	private double findPutGainOrLossOld(double close, double putStrikePrice) {
 		if (close > putStrikePrice) {
 			return 0;
 		}
 		return putStrikePrice - close;
+	}
+
+	private double findCallGainOrLoss(double close, double callStrikePrice) {
+		if (close < callStrikePrice) {
+			return 0;
+		}
+		if (close < callStrikePrice + input.spreadDistance) {
+			return close - callStrikePrice;
+		}
+		return input.spreadDistance;
+	}
+
+	private double findPutGainOrLoss(double close, double putStrikePrice) {
+		if (close > putStrikePrice) {
+			return 0;
+		}
+		if (close > putStrikePrice - input.spreadDistance) {
+			return putStrikePrice - close;
+		}
+		return input.spreadDistance;
 	}
 
 	private double getGainOrLossFromStockTransactions(Collection<PotentialTransaction> stockTransactions) {
@@ -310,7 +340,11 @@ public class PassiveIncomeBackwardTestStrategy {
 		call.stockPrice = minute.open;
 		call.minute = minute;
 		ot.addStockTransactionForCall(call);
-		ot.addPotentialStockEntryForCall(call.stockPrice + 0.25, call.stockPrice + 1.5, call.stockPrice - 0.25);
+		// ot.addPotentialStockEntryForCall(call.stockPrice + 0.25, call.stockPrice +
+		// 1.5, call.stockPrice - 0.25);
+		ot.addPotentialStockEntryForCall(call.stockPrice + input.distanceForEntryStockPurchaseAfterSelling,
+				call.stockPrice + input.distanceForExitOnGainAfterStockPurchase,
+				call.stockPrice - input.distanceForExitOnLossAfterStockPurchase);
 		return call;
 	}
 
@@ -346,34 +380,27 @@ public class PassiveIncomeBackwardTestStrategy {
 		sell.stockPrice = minute.open;
 		sell.minute = minute;
 		ot.addStockTransactionForPut(sell);
-		ot.addPotentialStockEntryForPut(sell.stockPrice - 0.25, sell.stockPrice - 1.5, sell.stockPrice + 0.25);
+		// ot.addPotentialStockEntryForPut(sell.stockPrice - 0.25, sell.stockPrice -
+		// 1.5, sell.stockPrice + 0.25);
+		ot.addPotentialStockEntryForCall(sell.stockPrice - input.distanceForEntryStockPurchaseAfterSelling,
+				sell.stockPrice - input.distanceForExitOnGainAfterStockPurchase,
+				sell.stockPrice + input.distanceForExitOnLossAfterStockPurchase);
 		return sell;
 	}
 
 	private StockTransaction sellShortStockForPutOption(HistoricalPriceForMinute minute, OptionTransaction ot) {
-		StockTransaction put = new StockTransaction();
-		put.type = StockTransactionType.SELL_SHORT_STOCK;
-		put.stockPrice = minute.open;
-		put.minute = minute;
-		ot.addStockTransactionForPut(put);
-		ot.addPotentialStockEntryForPut(put.stockPrice - 0.25, put.stockPrice - 1.5, put.stockPrice + 0.25);
-		return put;
-	}
+		StockTransaction sell = new StockTransaction();
+		sell.type = StockTransactionType.SELL_SHORT_STOCK;
+		sell.stockPrice = minute.open;
+		sell.minute = minute;
+		ot.addStockTransactionForPut(sell);
+		// ot.addPotentialStockEntryForPut(put.stockPrice - 0.25, put.stockPrice - 1.5,
+		// put.stockPrice + 0.25);
+		ot.addPotentialStockEntryForCall(sell.stockPrice - input.distanceForEntryStockPurchaseAfterSelling,
+				sell.stockPrice - input.distanceForExitOnGainAfterStockPurchase,
+				sell.stockPrice + input.distanceForExitOnLossAfterStockPurchase);
 
-	class PassiveIncomeInput {
-		double optionPercentagePremium = 0.002;
-		double strikePriceIncrementOrDecrement = 1;
-		double initialStockEntryDistanceFromStrikePrice = 1;
-		double stockExitGain = 1;
-		double stockExitLoss = 0.25;
-
-		double distanceForEntryStockPurchaseAfterSelling = 0.25;
-		double distanceForExitOnGainAfterStockPurchase = 1.25;
-		double distanceForExitOnLossAfterStockPurchase = 0;
-		
-		double spreadDistance = 5;
-		
-
+		return sell;
 	}
 
 	public PassiveIncomeInput getPassiveIncomeInput() {
@@ -481,6 +508,10 @@ class HistoricalPricesForMultipleDays {
 	public void addHistoricalPricesForDay(String date, HistoricalPricesForDay hpd) {
 		historicalPricesMap.put(date, hpd);
 
+	}
+
+	public Map<String, HistoricalPricesForDay> getHistoricalPricesMap() {
+		return historicalPricesMap;
 	}
 
 	public HistoricalPricesForDay mergeAllHistoricalPricesBySortingTheDates() {
