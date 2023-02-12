@@ -3,6 +3,7 @@ package com.rise.trading.options.passive.income.backtest;
 import java.awt.Container;
 import java.awt.Desktop;
 import java.awt.GridLayout;
+import java.awt.Point;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -11,7 +12,6 @@ import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import javax.swing.JButton;
@@ -37,6 +37,7 @@ public class TransactionSummaryScreen extends JFrame {
 	private JTextField ticker;
 	private JButton fetchTransactions, fetchWeeklyTransactions;
 	private JButton fetchTransactionsForDurationWeekly, fetchTransactionsForDuration;
+	private JButton fetchTransactionsForParticularDay;
 
 	private JTable results;
 	private TransactionSummaryTableModel model;
@@ -51,7 +52,7 @@ public class TransactionSummaryScreen extends JFrame {
 	public TransactionSummaryScreen() {
 		create();
 		addComponents();
-		setSize(600, 600);
+		setSize(1400, 900);
 		setVisible(true);
 	}
 
@@ -75,6 +76,8 @@ public class TransactionSummaryScreen extends JFrame {
 		panel.add(new JLabel("Enter End Date: "));
 		panel.add(endDate);
 		panel.add(fetchTransactionsForDuration);
+		panel.add(fetchTransactionsForDurationWeekly);
+		panel.add(fetchTransactionsForParticularDay);
 		northPanel.add(panel);
 		Container con = getContentPane();
 		con.add(northPanel, "North");
@@ -176,12 +179,14 @@ public class TransactionSummaryScreen extends JFrame {
 		exportToExcel = new JButton("Export to Excel");
 		fetchTransactionsForDuration = new JButton("Backtest for the duration");
 		fetchTransactionsForDurationWeekly = new JButton("Backtest for the duration (weekly)");
+		fetchTransactionsForParticularDay = new JButton("Fetch Transactions of particular day");
 
 		exportToExcel.addActionListener((e) -> export());
 		fetchTransactions.addActionListener((e) -> fetch());
 		fetchWeeklyTransactions.addActionListener((e) -> fetchWeekly());
 		fetchTransactionsForDurationWeekly.addActionListener((e) -> fetchForDurationWeekly());
 		fetchTransactionsForDuration.addActionListener((e) -> fetchForDuration());
+		fetchTransactionsForParticularDay.addActionListener((e) -> fetchTransactionsForParticularDay());
 
 		model = new TransactionSummaryTableModel();
 		results = new JTable(model);
@@ -191,6 +196,18 @@ public class TransactionSummaryScreen extends JFrame {
 
 		component = new ObjectEditingComponent(new PassiveIncomeInput());
 
+	}
+
+	private void fetchTransactionsForParticularDay() {
+		int selectedRow = results.getSelectedRow();
+		TransactionSummary summary = model.getTransactionSummary(selectedRow);
+		String ticker = summary.ticker;
+		LocalDate day = summary.date;
+		DetailedTransactionSummaryForDay txn = strategy.processDetailedTransactions(ticker, day);
+		DetailedTransactionSummaryForDayScreen screen = new DetailedTransactionSummaryForDayScreen(txn);
+		screen.setLocation(new Point(200, 100));
+		screen.setSize(800, 700);
+		screen.setVisible(true);
 	}
 
 	private void fetchForDurationWeekly() {
@@ -250,6 +267,10 @@ class TransactionSummaryTableModel extends AbstractTableModel {
 
 	}
 
+	public TransactionSummary getTransactionSummary(int selectedRow) {
+		return summaries.get(selectedRow);
+	}
+
 	public void setTransactionSummaries(List<TransactionSummary> summaries) {
 		this.summaries = summaries;
 	}
@@ -289,9 +310,5 @@ class TransactionSummaryTableModel extends AbstractTableModel {
 			return null;
 		}
 	}
-
-}
-
-class PassiveIncomeInputComponent {
 
 }

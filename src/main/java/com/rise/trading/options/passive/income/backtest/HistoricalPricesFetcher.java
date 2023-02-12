@@ -69,7 +69,7 @@ public class HistoricalPricesFetcher {
 				continue;
 			}
 
-			hpd.day = name;
+			
 			hpmd.addHistoricalPricesForDay(x.getName(), hpd);
 
 		}
@@ -78,9 +78,9 @@ public class HistoricalPricesFetcher {
 	}
 
 	public HistoricalPricesForMultipleDays getHistoricalPrices(String ticker, List<String> days) {
-		
+
 		return getHistoricalPrices(ticker, ((e) -> {
-			boolean b =  days.contains(e);
+			boolean b = days.contains(e);
 			return b;
 		}));
 	}
@@ -149,9 +149,11 @@ public class HistoricalPricesFetcher {
 		return null;
 	}
 
+	DateTimeFormatter df = DateTimeFormatter.ofPattern("d-MM-yyyy");
 	private HistoricalPricesForDay createHistoricalPricesForDay(File file, String ticker, LineParser lp) {
 		HistoricalPricesForDay day = new HistoricalPricesForDay();
 		day.ticker = ticker;
+		day.day = LocalDate.parse(file.getParentFile().getName(), df);
 
 		try {
 			List<String> lines = Files.readAllLines(Paths.get(file.toURI()));
@@ -365,6 +367,14 @@ public class HistoricalPricesFetcher {
 		 * now).isLessThan(20000);
 		 */
 
+	}
+
+	public HistoricalPricesForDay getHistoricalPricesForDay(String ticker, LocalDate day) {
+		DateTimeFormatter df = DateTimeFormatter.ofPattern("d-MM-yyyy");
+		String dir = DIRECTORY + "/" + ticker + "/" + day.format(df);
+		File d = new File(dir);
+		return makeHistoricalPricesForDay(d, ticker);
+		
 	}
 
 }
