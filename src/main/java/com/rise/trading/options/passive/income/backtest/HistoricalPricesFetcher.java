@@ -183,6 +183,7 @@ public class HistoricalPricesFetcher {
 		HistoricalPriceForMinute minute = new HistoricalPriceForMinute();
 		minute.timestamp = Long.parseLong(x[0]);
 		minute.d = new Date(minute.timestamp);
+		minute.time = new java.sql.Time(minute.timestamp).toString();
 		minute.open = Double.parseDouble(x[2]);
 		minute.low = Double.parseDouble(x[3]);
 		minute.high = Double.parseDouble(x[4]);
@@ -198,6 +199,7 @@ public class HistoricalPricesFetcher {
 			HistoricalPriceForMinute minute = new HistoricalPriceForMinute();
 			minute.timestamp = Long.parseLong(x[0]) * 1000;
 			minute.d = new Date(minute.timestamp);
+			minute.time = new java.sql.Time(minute.timestamp).toString();
 			minute.open = Double.parseDouble(x[3]);
 			minute.high = Double.parseDouble(x[4]);
 			minute.low = Double.parseDouble(x[5]);

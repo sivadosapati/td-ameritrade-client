@@ -3,9 +3,12 @@ package com.rise.trading.options.passive.income.backtest;
 import java.time.LocalDate;
 
 public class TransactionSummary {
+	public Integer id;
 	public String ticker;
 	public LocalDate date;
 	public Double open;
+	public Double low;
+	public Double high;
 	public Double close;
 	public Integer callTransactions;
 	public Double callGainOrLossFromStocks;

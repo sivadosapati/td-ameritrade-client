@@ -7,6 +7,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -44,7 +45,14 @@ public class PassiveIncomeBackwardTestStrategy {
 
 	}
 
-	public static void main(String x[]) {
+	
+	public static void main(String args[]) {
+		PassiveIncomeBackwardTestStrategy pibs = new PassiveIncomeBackwardTestStrategy();
+		List<String> strings = Arrays.asList("9-02-2023");
+		pibs.getTransactionSummaries("SPY",strings);
+		
+	}
+	public static void mainAnother(String x[]) {
 		PassiveIncomeBackwardTestStrategy pibs = new PassiveIncomeBackwardTestStrategy();
 		List<TransactionSummary> ts = pibs.getTransactionSummariesGroupedByBusinessWeek("AAPL");
 		for (TransactionSummary xx : ts) {
@@ -84,11 +92,13 @@ public class PassiveIncomeBackwardTestStrategy {
 
 	protected List<TransactionSummary> getTransactionSummaries(Map<String, HistoricalPricesForDay> map) {
 		List<TransactionSummary> summaries = new ArrayList<TransactionSummary>();
+		int sno = 1;
 		for (String key : map.keySet()) {
 			TransactionSummary summary = processTransactions(map.get(key));
 			if (summary == null) {
 				continue;
 			}
+			summary.id = sno++;
 			summary.totalGainOrLoss = summary.calculateTotalGainOrLoss();
 			summaries.add(summary);
 		}
@@ -129,7 +139,13 @@ public class PassiveIncomeBackwardTestStrategy {
 
 		HistoricalPriceForMinute begin = null;
 		HistoricalPriceForMinute end = null;
+		double high = 0.0;
+		double low = Double.MAX_VALUE;
 		for (HistoricalPriceForMinute minute : prices) {
+			double hm = minute.high;
+			double lm = minute.low;
+			if(hm > high ) high = hm;
+			if (lm < low) low = lm;
 			if (begin == null) {
 				begin = minute;
 			}
@@ -186,6 +202,8 @@ public class PassiveIncomeBackwardTestStrategy {
 		}
 		summary.open = begin.open;
 		summary.close = end.close;
+		summary.high = high;
+		summary.low = low;
 
 		summary.callStrikePrice = callTransaction.strikePrice;
 		summary.callTransactions = stockTransactionsForCall.size();
@@ -193,11 +211,8 @@ public class PassiveIncomeBackwardTestStrategy {
 				- findCallGainOrLoss(summary.close, summary.callStrikePrice);
 		summary.callGainOrLossFromStocks = getGainOrLossFromStockTransactions(stockTransactionsForCall);
 		summary.callGainOrLossFromStocks += matchGainOrLossFromStocksForCall(summary, stockTransactionsForCall);
-		// System.out.println("----Option Transactions");
-		// displayOptionTransactions(putTransaction);
-		// System.out.println("----Stock Transaction at each minute");
-		// displayStockTransactions(stockTransactionsForPut);
-		// displayStockTransactions(stockTransactionsForPut);
+		
+		//displayResults(putTransaction, stockTransactionsForCall, stockTransactionsForPut);
 
 		summary.putStrikePrice = putTransaction.strikePrice;
 		summary.putTransactions = stockTransactionsForPut.size();
@@ -214,6 +229,17 @@ public class PassiveIncomeBackwardTestStrategy {
 		txn.day = day;
 		return txn;
 
+	}
+
+	protected void displayResults(OptionTransaction putTransaction, List<PotentialTransaction> stockTransactionsForCall,
+			List<PotentialTransaction> stockTransactionsForPut) {
+		//Display results
+		System.out.println("----Option Transactions");
+		displayOptionTransactions(putTransaction);
+		System.out.println("----Stock Transaction at each minute");
+		displayStockTransactions(stockTransactionsForCall);
+		displayStockTransactions(stockTransactionsForPut);
+		//Display results
 	}
 
 	public TransactionSummary processTransactions(HistoricalPricesForDay day) {
@@ -405,7 +431,7 @@ public class PassiveIncomeBackwardTestStrategy {
 		ot.addStockTransactionForPut(sell);
 		// ot.addPotentialStockEntryForPut(sell.stockPrice - 0.25, sell.stockPrice -
 		// 1.5, sell.stockPrice + 0.25);
-		ot.addPotentialStockEntryForCall(sell.stockPrice - input.distanceForEntryStockPurchaseAfterSelling,
+		ot.addPotentialStockEntryForPut(sell.stockPrice - input.distanceForEntryStockPurchaseAfterSelling,
 				sell.stockPrice - input.distanceForExitOnGainAfterStockPurchase,
 				sell.stockPrice + input.distanceForExitOnLossAfterStockPurchase);
 		return sell;
@@ -419,7 +445,7 @@ public class PassiveIncomeBackwardTestStrategy {
 		ot.addStockTransactionForPut(sell);
 		// ot.addPotentialStockEntryForPut(put.stockPrice - 0.25, put.stockPrice - 1.5,
 		// put.stockPrice + 0.25);
-		ot.addPotentialStockEntryForCall(sell.stockPrice - input.distanceForEntryStockPurchaseAfterSelling,
+		ot.addPotentialStockEntryForPut(sell.stockPrice - input.distanceForEntryStockPurchaseAfterSelling,
 				sell.stockPrice - input.distanceForExitOnGainAfterStockPurchase,
 				sell.stockPrice + input.distanceForExitOnLossAfterStockPurchase);
 

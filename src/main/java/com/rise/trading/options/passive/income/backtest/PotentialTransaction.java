@@ -28,7 +28,7 @@ interface Transaction {
 
 class StockTransaction extends BaseObject implements ToJSONString, Transaction {
 	public StockTransactionType type;
-	public double stockPrice;
+	public Double stockPrice;
 	public HistoricalPriceForMinute minute;
 
 }
@@ -37,14 +37,12 @@ class OptionTransaction extends BaseObject implements Transaction {
 	OptionTransactionType type;
 	double strikePrice;
 	double potentialOptionValue;
-	Stack<Double> potentialStockEntriesForCall = new Stack<Double>();
+
 	Stack<StockEntry> stockEntriesForCall = new Stack<StockEntry>();
 	Collection<StockTransaction> potentialStockTransactionsForCall = new ArrayList<StockTransaction>();
-	
-	Stack<Double> potentialStockEntriesForPut = new Stack<Double>();
+
 	Stack<StockEntry> stockEntriesForPut = new Stack<StockEntry>();
-	Collection<StockTransaction> potentialStockTransactionsForPut= new ArrayList<StockTransaction>();
-	
+	Collection<StockTransaction> potentialStockTransactionsForPut = new ArrayList<StockTransaction>();
 
 	public StockEntry getPotentialStockEntryForCall() {
 		return stockEntriesForCall.peek();
@@ -57,7 +55,7 @@ class OptionTransaction extends BaseObject implements Transaction {
 	public void addStockTransactionForCall(StockTransaction st) {
 		potentialStockTransactionsForCall.add(st);
 	}
-	
+
 	public StockEntry getPotentialStockEntryForPut() {
 		return stockEntriesForPut.peek();
 	}
@@ -82,6 +80,5 @@ class StockEntry extends BaseObject implements ToJSONString {
 		this.gain = gain;
 		this.loss = loss;
 	}
-
 
 }

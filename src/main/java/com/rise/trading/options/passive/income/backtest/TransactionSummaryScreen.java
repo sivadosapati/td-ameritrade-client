@@ -23,6 +23,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
 import javax.swing.table.AbstractTableModel;
 
 import com.rise.trading.options.ObjectEditingComponent;
@@ -169,11 +170,11 @@ public class TransactionSummaryScreen extends JFrame {
 	private void create() {
 		ticker = new JTextField(10);
 		startDate = new JTextField(10);
-		startDate.setText("01-02-2023");
+		startDate.setText("01-01-2023");
 
 		endDate = new JTextField(10);
-		endDate.setText("02-02-2023");
-		ticker.setText("GOOG");
+		endDate.setText(getDate(0));
+		ticker.setText("SPY");
 		fetchTransactions = new JButton("Backtest");
 		fetchWeeklyTransactions = new JButton("Backtest weekly");
 		exportToExcel = new JButton("Export to Excel");
@@ -190,6 +191,7 @@ public class TransactionSummaryScreen extends JFrame {
 
 		model = new TransactionSummaryTableModel();
 		results = new JTable(model);
+        results.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		strategy = new PassiveIncomeBackwardTestStrategy();
 
 		results.setAutoCreateRowSorter(true);
@@ -197,14 +199,36 @@ public class TransactionSummaryScreen extends JFrame {
 		component = new ObjectEditingComponent(new PassiveIncomeInput());
 
 	}
+	
+	private String getDate(int distanceFromToday) {
+		// "2023-01-31" , yyyy-mm-dd
+		LocalDate start = LocalDate.now();
+		LocalDate end = start.plusDays(distanceFromToday);
+
+		return toDateString(end);
+	}
+
+	private String toDateString(LocalDate ld) {
+
+		DateTimeFormatter df = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+		String s = ld.format(df);
+		return s;
+	}
+
 
 	private void fetchTransactionsForParticularDay() {
-		int selectedRow = results.getSelectedRow();
-		TransactionSummary summary = model.getTransactionSummary(selectedRow);
+		// int selectedRow = results.getSelectedRow();
+		ListSelectionModel selection = results.getSelectionModel();
+		int selectedRow = selection.getMinSelectionIndex();
+		//selectedRow = selection.get
+		int row = results.convertRowIndexToView(selectedRow);
+		JOptionPane.showMessageDialog(null, "[selectedRow,row] = ["+selectedRow+","+row+"]");
+		TransactionSummary summary = model.getTransactionSummary(row);
+
 		String ticker = summary.ticker;
 		LocalDate day = summary.date;
 		DetailedTransactionSummaryForDay txn = strategy.processDetailedTransactions(ticker, day);
-		DetailedTransactionSummaryForDayScreen screen = new DetailedTransactionSummaryForDayScreen(txn);
+		DetailedTransactionSummaryForDayScreen screen = new DetailedTransactionSummaryForDayScreen(txn, summary);
 		screen.setLocation(new Point(200, 100));
 		screen.setSize(800, 700);
 		screen.setVisible(true);
