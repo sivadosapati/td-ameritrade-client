@@ -197,6 +197,8 @@ public class TDAScreen extends JFrame {
 		private JButton placeClosingOrdersForEquities;
 		private JButton placeCloseShortEquitiesWhenTheyAreInExpectedProfitOrLoss;
 		private JButton placeCloseLongEquitiesWhenTheyAreInExpectedProfitOrLoss;
+		
+		private JButton adjustEquityPrice;
 		private PassiveIncomeStrategy strategy;
 
 		public PassiveIncomeStrategyComponent() {
@@ -209,6 +211,7 @@ public class TDAScreen extends JFrame {
 			placeNextDayOrder = new JButton("Passive Income For Next Day");
 			placeClosingOrdersForOptions = new JButton("Place Closing Orders for Options");
 			placeClosingOrdersForEquities = new JButton("Place Closing Orders for Equities");
+			adjustEquityPrice = new JButton("Adjust Equity Price For Working Orders");
 			placeCloseShortEquitiesWhenTheyAreInExpectedProfitOrLoss = new JButton(
 					"Close Short Equities when they are in expected profit or loss");
 			placeCloseLongEquitiesWhenTheyAreInExpectedProfitOrLoss = new JButton(
@@ -229,6 +232,7 @@ public class TDAScreen extends JFrame {
 			panel.add(placeNextDayOrder);
 			panel.add(placeClosingOrdersForOptions);
 			panel.add(placeClosingOrdersForEquities);
+			panel.add(adjustEquityPrice);
 			displayPanel.add(panel);
 			panel = new JPanel();
 			panel.add(placeCloseShortEquitiesWhenTheyAreInExpectedProfitOrLoss);
@@ -238,10 +242,17 @@ public class TDAScreen extends JFrame {
 			placeNextDayOrder.addActionListener((e) -> placePassiveIncomeForNextDayOrders());
 			placeClosingOrdersForEquities.addActionListener((e) -> placeClosingOrdersForEquities());
 			placeClosingOrdersForOptions.addActionListener((e) -> placeClosingOrdersForOptions());
+			adjustEquityPrice.addActionListener((e) -> adjustEquityPrices());
 			placeCloseShortEquitiesWhenTheyAreInExpectedProfitOrLoss
 					.addActionListener((e) -> placeCloseShortEquitiesWhenTheyAreExpectedToBeInProfitOrLoss());
 			placeCloseLongEquitiesWhenTheyAreInExpectedProfitOrLoss
 					.addActionListener((e) -> placeCloseLongEquitiesWhenTheyAreExpectedToBeInProfitOrLoss());
+		}
+
+		private void adjustEquityPrices() {
+			String accountId = ((Account) accounts.getSelectedItem()).id;
+			String stockCode = stockTicker.getText();
+			strategy.adjustWorkingEquityOrdersByMovingTheClosingPrice(accountId, stockCode, 0.10d);
 		}
 
 		private void placePassiveIncomeForNextDayOrders() {

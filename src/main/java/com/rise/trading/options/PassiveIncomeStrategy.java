@@ -17,6 +17,7 @@ import com.studerw.tda.model.account.OptionInstrument.PutCall;
 import com.studerw.tda.model.account.Order;
 import com.studerw.tda.model.account.OrderLegCollection;
 import com.studerw.tda.model.account.OrderLegCollection.Instruction;
+import com.studerw.tda.model.account.OrderLegCollection.OrderLegType;
 import com.studerw.tda.model.account.OrderStrategyType;
 import com.studerw.tda.model.account.OrderType;
 import com.studerw.tda.model.account.Position;
@@ -224,6 +225,36 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		GroupedPositions gps = getGroupedPositions(accountId);
 		List<Position> position = getOptionPositionsThatExpireOnThisDay(gps.getGroupedPosition(stock), day);
 		placeClosingTradesForEquityOnDailyExpiringOptions(accountId, position, gps);
+	}
+	public void adjustWorkingEquityOrdersByMovingTheClosingPrice(String accountId, String stock, double priceAdjustment) {
+		List<Order> orders = getCurrentWorkingOrders(accountId);
+		for( Order o : orders) {
+			OrderLegCollection olc = o.getOrderLegCollection().iterator().next();
+			if( olc.getOrderLegType() == OrderLegType.EQUITY) {
+				if( olc.getInstruction() == Instruction.SELL_SHORT) {
+					if(o.getOrderType() == OrderType.STOP_LIMIT) {
+						o.setStopPrice(new BigDecimal(o.getStopPrice().doubleValue() + priceAdjustment));
+						o.setPrice(o.getStopPrice());
+						//getClient().cancelOrder(accountId, o.getOrderId()+"");
+						//o.setOrderId(null);
+						getClient().replaceOrder(accountId, o);
+						continue;
+					}
+				}
+				if(olc.getInstruction() == Instruction.SELL) {
+					if(o.getOrderType() == OrderType.LIMIT) {
+						//o.setStopPrice(new BigDecimal(o.getStopPrice().doubleValue() + priceAdjustment));
+						o.setPrice(new BigDecimal(o.getPrice().doubleValue() + priceAdjustment));
+						//getClient().cancelOrder(accountId, o.getOrderId()+"");
+						//o.setOrderId(null);
+						getClient().replaceOrder(accountId, o);
+						//getClient().
+						continue;
+					}
+				}
+			}
+			
+		}
 	}
 
 	private void placeClosingTradesForEquityOnDailyExpiringOptions(String accountId, List<Position> position,

@@ -1,5 +1,6 @@
 package com.studerw.tda.client;
 
+import com.rise.trading.options.Util;
 import com.studerw.tda.http.LoggingInterceptor;
 import com.studerw.tda.http.cookie.CookieJarImpl;
 import com.studerw.tda.http.cookie.store.MemoryCookieStore;
@@ -385,6 +386,36 @@ public class HttpTdaClient implements TdaClient {
       throw new RuntimeException(e);
     }
 
+  }
+  
+  @Override
+  public void replaceOrder(String accountId, Order order) {
+	   LOGGER.info("Replacing Order for account[{}] -> {}", accountId, order);
+	    if (StringUtils.isBlank(accountId)) {
+	      throw new IllegalArgumentException("accountId cannot be blank.");
+	    }
+
+	    HttpUrl url = baseUrl("accounts", accountId, "orders", order.getOrderId()+"")
+	        .build();
+	    //Builder urlBuilder = baseUrl("accounts", accountId, "orders", String.valueOf(orderId));
+
+	    String json = DefaultMapper.toJson(order);
+	    //System.out.println(json);
+	    RequestBody body = RequestBody.create(MediaType.parse("application/json"), json);
+	    Request request = new Request.Builder().url(url).
+	        headers(defaultHeaders())
+	        .put(body)
+	        .build();
+
+	    try (Response response = this.httpClient.newCall(request).execute()) {
+	      checkResponse(response, false);
+	      if (response.code() != 201) {
+	        LOGGER.warn("Expected 201 response, but received " + response.code());
+	      }
+	    } catch (IOException e) {
+	      throw new RuntimeException(e);
+	    }
+	  
   }
 
   @Override
@@ -867,7 +898,14 @@ public class HttpTdaClient implements TdaClient {
   private void checkResponse(Response response, boolean emptyJsonOk) {
     if (!response.isSuccessful()) {
       String errorMsg = response.message();
-      if (StringUtils.isBlank(errorMsg)) {
+      try {
+          System.out.println("Exception body -> "+new String(response.body().bytes()));
+           
+      }
+      catch(Exception e) {
+    	  e.printStackTrace();
+      }
+ if (StringUtils.isBlank(errorMsg)) {
         try {
           errorMsg = response.body().string();
         } catch (Exception e) {

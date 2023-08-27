@@ -43,7 +43,8 @@ public class TradeCoveredCalls extends BaseHandler {
 		// String json = Util.toJSON(orders);
 		// System.out.println(json);
 		// tcc.findPotentialCoveredCallTrades(Util.getAccountId1());
-		tcc.displayInstruments(Util.getAccountId1());
+		//tcc.displayInstruments(Util.getAccountId1());
+		System.out.println(Util.toJSON(tcc.getCurrentWorkingOrders(Util.getAccountId1())));
 
 	}
 
