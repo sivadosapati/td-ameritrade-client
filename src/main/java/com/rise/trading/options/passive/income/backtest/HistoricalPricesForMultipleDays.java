@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public class HistoricalPricesForMultipleDays {
@@ -44,6 +45,12 @@ public class HistoricalPricesForMultipleDays {
 		dates.append("}]");
 		// System.out.println(dates);
 		return result;
+	}
+
+	public List<HistoricalPricesForDay> sortHistoricalPricesByDay() {
+		ArrayList<HistoricalPricesForDay> values = new ArrayList<HistoricalPricesForDay>(historicalPricesMap.values());
+		Collections.sort(values, HistoricalPricesForDay.dayComparator);
+		return values;
 	}
 
 	public Map<String, HistoricalPricesForDay> getPricesGroupedByBusinessWeeks() {

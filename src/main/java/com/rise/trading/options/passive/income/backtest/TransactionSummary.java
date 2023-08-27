@@ -10,15 +10,19 @@ public class TransactionSummary {
 	public Double low;
 	public Double high;
 	public Double close;
-	public Integer callTransactions;
-	public Double callGainOrLossFromStocks;
-	public Integer putTransactions;
-	public Double putGainOrLossFromStocks;
 	public Double callStrikePrice;
 	public Double putStrikePrice;
-	public Double potentialCallOptionGainOrLoss;
-	public Double potentialPutOptionGainOrLoss;
+	public Double callGainOrLossFromStocks = 0d;
+	public Double putGainOrLossFromStocks = 0d;
+
+	public Double potentialCallOptionGainOrLoss = 0d;
+	public Double potentialPutOptionGainOrLoss = 0d;
 	public Double totalGainOrLoss;
+
+
+
+	public Integer callTransactions = 0;
+	public Integer putTransactions = 0;
 
 	public static String getHeader() {
 		return "ticker,date,open,close,callTransactions,callGainOrLossFromStocks,callStrikePrice,potentialCallOptionGainOrLoss,putTransactions,putGainOrLossFromStocks,putStrikePrice,potentialPutOptionGainOrLoss,totalGainOrLoss";
@@ -36,4 +40,5 @@ public class TransactionSummary {
 		return callGainOrLossFromStocks + putGainOrLossFromStocks + potentialCallOptionGainOrLoss
 				+ potentialPutOptionGainOrLoss;
 	}
+
 }

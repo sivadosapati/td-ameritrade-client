@@ -45,13 +45,13 @@ public class PassiveIncomeBackwardTestStrategy {
 
 	}
 
-	
 	public static void main(String args[]) {
 		PassiveIncomeBackwardTestStrategy pibs = new PassiveIncomeBackwardTestStrategy();
 		List<String> strings = Arrays.asList("9-02-2023");
-		pibs.getTransactionSummaries("SPY",strings);
-		
+		pibs.getTransactionSummaries("SPY", strings);
+
 	}
+
 	public static void mainAnother(String x[]) {
 		PassiveIncomeBackwardTestStrategy pibs = new PassiveIncomeBackwardTestStrategy();
 		List<TransactionSummary> ts = pibs.getTransactionSummariesGroupedByBusinessWeek("AAPL");
@@ -81,20 +81,197 @@ public class PassiveIncomeBackwardTestStrategy {
 	public List<TransactionSummary> getTransactionSummaries(String ticker) {
 
 		HistoricalPricesForMultipleDays md = fetcher.getHistoricalPrices(ticker);
-		return getTransactionSummaries(md.getHistoricalPricesMap());
+		return getTransactionSummaries(md);
 
 	}
 
 	public List<TransactionSummary> getTransactionSummaries(String ticker, List<String> days) {
 		HistoricalPricesForMultipleDays md = fetcher.getHistoricalPrices(ticker, days);
-		return getTransactionSummaries(md.getHistoricalPricesMap());
+		return getTransactionSummaries(md);
+	}
+
+	private Double findPotentialOptionPremium(Double strikePrice, Double open) {
+		double delta = strikePrice - open;
+		if (delta > 6) {
+			return 5d;
+		}
+		if (delta > 5) {
+			return 10d;
+		}
+		if (delta > 4) {
+			return 0.01 * strikePrice;
+		}
+		if (delta > 3) {
+			return 0.015 * strikePrice;
+		}
+		if (delta > 2) {
+			return 0.02 * strikePrice;
+		}
+		if (delta > 1) {
+			return 0.025 * strikePrice;
+		}
+		return 0.03 * strikePrice;
+	}
+
+	public List<TransactionSummary> processBuyingLongAndShortEveryDayWhenApplicable(String ticker, List<String> days) {
+		HistoricalPricesForMultipleDays md = fetcher.getHistoricalPrices(ticker, days);
+		List<HistoricalPricesForDay> sortedPrices = md.sortHistoricalPricesByDay();
+		double longStock = 0;
+		double shortStock = 0;
+		double longStockQuantity = 0;
+		double shortStockQuantity = 0;
+		double callPremium = 0;
+		double putPremium = 0;
+		double callStrikePrice = 0;
+		double putStrikePrice = 0;
+		boolean boughtLongStocksInDay = false;
+		boolean boughtShortStocksInDay = false;
+		List<TransactionSummary> summaries = new ArrayList<TransactionSummary>();
+		double cumulativeGainOrLoss = 0d;
+		for (HistoricalPricesForDay day : sortedPrices) {
+			boughtLongStocksInDay = false;
+			boughtShortStocksInDay = false;
+			PassiveIncomeInput input = getPassiveIncomeInput();
+
+			if (day == null) {
+				continue;
+			}
+
+			Collection<HistoricalPriceForMinute> prices = day.getPricesForOnlyHoursWhereOptionsAreTraded();
+			if (prices.size() == 0)
+				continue;
+			LongAndShortEveryDayTransactionSummary summary = new LongAndShortEveryDayTransactionSummary();
+			summary.date = day.day;
+			summary.ticker = day.ticker;
+			summary.longStockStartOfTheDay = longStock;
+			summary.shortStockStartOfTheDay = shortStock;
+			summary.longStockQuantity = longStockQuantity;
+			summary.shortStockQuantity = shortStockQuantity;
+			summary.cumulativeGainOrLoss = cumulativeGainOrLoss;
+			HistoricalPriceForMinute begin = null;
+			HistoricalPriceForMinute end = null;
+			double high = 0.0;
+			double low = Double.MAX_VALUE;
+			for (HistoricalPriceForMinute minute : prices) {
+				double hm = minute.high;
+				double lm = minute.low;
+				if (hm > high)
+					high = hm;
+				if (lm < low)
+					low = lm;
+				if (begin == null) {
+					begin = minute;
+				}
+				end = minute;
+				if (end == begin) {
+					double o = minute.open;
+					// One possible condition
+
+					callStrikePrice = Math.ceil(o) + input.strikePriceIncrementOrDecrement;
+					callPremium = callStrikePrice * input.optionPercentagePremium * 100;
+					putStrikePrice = Math.floor(o) - input.strikePriceIncrementOrDecrement;
+					putPremium = putStrikePrice * input.optionPercentagePremium * 100;
+
+					// Other possible condition
+
+					/*
+					 * if (longStock > 0) { double potentialCallStrike = Math.ceil(longStock / 100);
+					 * if (potentialCallStrike > o) { callStrikePrice = potentialCallStrike;
+					 * callPremium = findPotentialOptionPremium(callStrikePrice, o); } } if
+					 * (shortStock < 0) { double pcs = Math.floor(-1 * shortStock / 100); if (pcs <
+					 * o) { putStrikePrice = pcs; putPremium = findPotentialOptionPremium(o,
+					 * putStrikePrice); } }
+					 */
+
+					continue;
+				}
+				double open = minute.open;
+				if (open > callStrikePrice - input.initialStockEntryDistanceFromStrikePrice) {
+					if (boughtLongStocksInDay == false) {
+						boughtLongStocksInDay = true;
+						longStock += 100 * open;
+						longStockQuantity += 100;
+					}
+
+				}
+				if (open < putStrikePrice + input.initialStockEntryDistanceFromStrikePrice) {
+					if (boughtShortStocksInDay == false) {
+						boughtShortStocksInDay = true;
+						shortStock += -100 * open;
+						shortStockQuantity += 100;
+					}
+				}
+
+			}
+			summary.open = begin.open;
+			summary.close = end.close;
+			summary.high = high;
+			summary.low = low;
+
+			summary.potentialCallOptionGainOrLoss = callPremium;
+			summary.potentialPutOptionGainOrLoss = putPremium;
+			summary.callStrikePrice = callStrikePrice;
+			summary.putStrikePrice = putStrikePrice;
+			summary.totalGainOrLoss = callPremium + putPremium;
+			if (summary.close > summary.callStrikePrice) {
+				// summary.callGainOrLossFromStocks = summary.callStrikePrice * 100 - longStock;
+				// summary.totalGainOrLoss += summary.callGainOrLossFromStocks;
+				// longStock = 0;
+				summary.callGainOrLossFromStocks = 100 * (summary.callStrikePrice - summary.close);
+				summary.totalGainOrLoss += summary.callGainOrLossFromStocks;
+				longStock -= 100 * summary.callStrikePrice;
+				longStockQuantity -= 100;
+
+			}
+			if (summary.close < summary.putStrikePrice) {
+				// summary.putGainOrLossFromStocks = -1 * (summary.putStrikePrice * 100 +
+				// shortStock);
+				// summary.totalGainOrLoss += summary.putGainOrLossFromStocks;
+				// shortStock = 0;
+
+				summary.putGainOrLossFromStocks = 100 * (summary.close - summary.putStrikePrice);
+				summary.totalGainOrLoss += summary.putGainOrLossFromStocks;
+				shortStock = shortStock + 100 * summary.putStrikePrice;
+				shortStockQuantity -= 100;
+
+			}
+			summary.longStockEndOfTheDay = longStock;
+			summary.shortStockEndOfTheDay = shortStock;
+			summary.shortStockQuantityEndOfTheDay = shortStockQuantity;
+			summary.longStockQuantityEndOfTheDay = longStockQuantity;
+			summary.calculatePotentialGainOrLossOnStocksIfLiquidatedEndOfDay();
+			cumulativeGainOrLoss += summary.totalGainOrLoss;
+			summary.cumulativeGainOrLoss = cumulativeGainOrLoss;
+
+			summaries.add(summary);
+
+		}
+		return summaries;
 	}
 
 	protected List<TransactionSummary> getTransactionSummaries(Map<String, HistoricalPricesForDay> map) {
+		List<HistoricalPricesForDay> prices = new ArrayList<HistoricalPricesForDay>(map.values());
+		Collections.sort(prices, HistoricalPricesForDay.dayComparator);
 		List<TransactionSummary> summaries = new ArrayList<TransactionSummary>();
 		int sno = 1;
-		for (String key : map.keySet()) {
-			TransactionSummary summary = processTransactions(map.get(key));
+		for (HistoricalPricesForDay price : prices) {
+			TransactionSummary summary = processTransactions(price);
+			if (summary == null) {
+				continue;
+			}
+			summary.id = sno++;
+			summary.totalGainOrLoss = summary.calculateTotalGainOrLoss();
+			summaries.add(summary);
+		}
+		return summaries;
+	}
+
+	protected List<TransactionSummary> getTransactionSummaries(HistoricalPricesForMultipleDays md) {
+		List<HistoricalPricesForDay> prices = md.sortHistoricalPricesByDay();
+		List<TransactionSummary> summaries = new ArrayList<TransactionSummary>();
+		int sno = 1;
+		for (HistoricalPricesForDay day : prices) {
+			TransactionSummary summary = processTransactions(day);
 			if (summary == null) {
 				continue;
 			}
@@ -144,8 +321,10 @@ public class PassiveIncomeBackwardTestStrategy {
 		for (HistoricalPriceForMinute minute : prices) {
 			double hm = minute.high;
 			double lm = minute.low;
-			if(hm > high ) high = hm;
-			if (lm < low) low = lm;
+			if (hm > high)
+				high = hm;
+			if (lm < low)
+				low = lm;
 			if (begin == null) {
 				begin = minute;
 			}
@@ -211,8 +390,9 @@ public class PassiveIncomeBackwardTestStrategy {
 				- findCallGainOrLoss(summary.close, summary.callStrikePrice);
 		summary.callGainOrLossFromStocks = getGainOrLossFromStockTransactions(stockTransactionsForCall);
 		summary.callGainOrLossFromStocks += matchGainOrLossFromStocksForCall(summary, stockTransactionsForCall);
-		
-		//displayResults(putTransaction, stockTransactionsForCall, stockTransactionsForPut);
+
+		// displayResults(putTransaction, stockTransactionsForCall,
+		// stockTransactionsForPut);
 
 		summary.putStrikePrice = putTransaction.strikePrice;
 		summary.putTransactions = stockTransactionsForPut.size();
@@ -233,13 +413,13 @@ public class PassiveIncomeBackwardTestStrategy {
 
 	protected void displayResults(OptionTransaction putTransaction, List<PotentialTransaction> stockTransactionsForCall,
 			List<PotentialTransaction> stockTransactionsForPut) {
-		//Display results
+		// Display results
 		System.out.println("----Option Transactions");
 		displayOptionTransactions(putTransaction);
 		System.out.println("----Stock Transaction at each minute");
 		displayStockTransactions(stockTransactionsForCall);
 		displayStockTransactions(stockTransactionsForPut);
-		//Display results
+		// Display results
 	}
 
 	public TransactionSummary processTransactions(HistoricalPricesForDay day) {

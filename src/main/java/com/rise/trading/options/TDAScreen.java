@@ -192,6 +192,7 @@ public class TDAScreen extends JFrame {
 		private JTextField putDistance = new JTextField(3);
 		private JPanel displayPanel;
 		private JButton placeOrder;
+		private JButton placeNextDayOrder;
 		private JButton placeClosingOrdersForOptions;
 		private JButton placeClosingOrdersForEquities;
 		private JButton placeCloseShortEquitiesWhenTheyAreInExpectedProfitOrLoss;
@@ -200,11 +201,12 @@ public class TDAScreen extends JFrame {
 
 		public PassiveIncomeStrategyComponent() {
 			strategy = new PassiveIncomeStrategy();
-			stockTicker.setText("SPY");
+			stockTicker.setText("QQQ");
 			numberOfContracts.setText("1");
 			callDistance.setText("2");
 			putDistance.setText("2");
 			placeOrder = new JButton("Passive Income");
+			placeNextDayOrder = new JButton("Passive Income For Next Day");
 			placeClosingOrdersForOptions = new JButton("Place Closing Orders for Options");
 			placeClosingOrdersForEquities = new JButton("Place Closing Orders for Equities");
 			placeCloseShortEquitiesWhenTheyAreInExpectedProfitOrLoss = new JButton(
@@ -224,6 +226,7 @@ public class TDAScreen extends JFrame {
 			displayPanel.add(panel);
 			panel = new JPanel();
 			panel.add(placeOrder);
+			panel.add(placeNextDayOrder);
 			panel.add(placeClosingOrdersForOptions);
 			panel.add(placeClosingOrdersForEquities);
 			displayPanel.add(panel);
@@ -232,12 +235,22 @@ public class TDAScreen extends JFrame {
 			panel.add(placeCloseLongEquitiesWhenTheyAreInExpectedProfitOrLoss);
 			displayPanel.add(panel);
 			placeOrder.addActionListener((e) -> placePassiveIncomeOrders());
+			placeNextDayOrder.addActionListener((e) -> placePassiveIncomeForNextDayOrders());
 			placeClosingOrdersForEquities.addActionListener((e) -> placeClosingOrdersForEquities());
 			placeClosingOrdersForOptions.addActionListener((e) -> placeClosingOrdersForOptions());
 			placeCloseShortEquitiesWhenTheyAreInExpectedProfitOrLoss
 					.addActionListener((e) -> placeCloseShortEquitiesWhenTheyAreExpectedToBeInProfitOrLoss());
 			placeCloseLongEquitiesWhenTheyAreInExpectedProfitOrLoss
 					.addActionListener((e) -> placeCloseLongEquitiesWhenTheyAreExpectedToBeInProfitOrLoss());
+		}
+
+		private void placePassiveIncomeForNextDayOrders() {
+			String accountId = ((Account) accounts.getSelectedItem()).id;
+			String stockCode = stockTicker.getText();
+			int contracts = getInteger(numberOfContracts);
+			int call = getInteger(callDistance);
+			int put = getInteger(putDistance);
+			strategy.placeNextDayTradeForPassiveIncome(accountId, stockCode, call, put, contracts);
 		}
 
 		private void placeClosingOrdersForOptions() {
@@ -318,9 +331,9 @@ class HistoricalPricesComponent {
 			public void fetch(HistoricalPricesFetcher fetcher, String ticker, LocalDate start, LocalDate end)
 					throws Exception {
 				fetcher.fetchAndPotentialStoreHistoricalPrices(ticker, start);
-				
+
 			}
-			
+
 		};
 		fetchHistoricalPrices.addActionListener((e) -> fetchHistoricalPrices(hf));
 		Fetcher eod = new Fetcher() {
@@ -329,14 +342,13 @@ class HistoricalPricesComponent {
 			public void fetch(HistoricalPricesFetcher fetcher, String ticker, LocalDate start, LocalDate end)
 					throws Exception {
 				fetcher.fetchAndPotentialStoreHistoricalPricesEOD(ticker, start, end);
-				
+
 			}
-			
+
 		};
 		fetchHistoricalPricesFromEOD.addActionListener((e) -> fetchHistoricalPrices(eod));
 	}
 
-	
 	private String getDate(int distanceFromToday) {
 		// "2023-01-31" , yyyy-mm-dd
 		LocalDate start = LocalDate.now();
@@ -370,7 +382,7 @@ class HistoricalPricesComponent {
 		return panel;
 	}
 
-	private void fetchHistoricalPrices( Fetcher f) {
+	private void fetchHistoricalPrices(Fetcher f) {
 		String ticker = this.ticker.getText();
 		LocalDate start = makeDate(this.startDate.getText());
 		LocalDate end = makeDate(this.endDate.getText());
@@ -378,17 +390,15 @@ class HistoricalPricesComponent {
 		System.out.println(end);
 		HistoricalPricesFetcher hp = new HistoricalPricesFetcher();
 		try {
-			f.fetch(hp,ticker, start, end);
+			f.fetch(hp, ticker, start, end);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 
 	}
-	
-	
 
 	interface Fetcher {
-		void fetch(HistoricalPricesFetcher fetcher, String ticker, LocalDate start, LocalDate end)throws Exception;
+		void fetch(HistoricalPricesFetcher fetcher, String ticker, LocalDate start, LocalDate end) throws Exception;
 	}
 
 	private LocalDate makeDate(String text) {

@@ -15,8 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFileChooser;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -26,10 +26,11 @@ import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.AbstractTableModel;
 
+import com.rise.trading.options.BaseFrame;
 import com.rise.trading.options.ObjectEditingComponent;
 import com.rise.trading.options.Util;
 
-public class TransactionSummaryScreen extends JFrame {
+public class TransactionSummaryScreen extends BaseFrame {
 
 	/**
 	 * 
@@ -39,6 +40,8 @@ public class TransactionSummaryScreen extends JFrame {
 	private JButton fetchTransactions, fetchWeeklyTransactions;
 	private JButton fetchTransactionsForDurationWeekly, fetchTransactionsForDuration;
 	private JButton fetchTransactionsForParticularDay;
+
+	private JCheckBox buyLongAndShortEveryDay;
 
 	private JTable results;
 	private TransactionSummaryTableModel model;
@@ -51,13 +54,11 @@ public class TransactionSummaryScreen extends JFrame {
 	private ObjectEditingComponent component;
 
 	public TransactionSummaryScreen() {
-		create();
-		addComponents();
-		setSize(1400, 900);
-		setVisible(true);
+
 	}
 
-	private void addComponents() {
+	@Override
+	public void addComponents() {
 		JPanel northPanel = new JPanel(new GridLayout(2, 1));
 
 		JPanel panel = new JPanel();
@@ -68,6 +69,7 @@ public class TransactionSummaryScreen extends JFrame {
 		panel.add(fetchTransactions);
 		panel.add(fetchWeeklyTransactions);
 		panel.add(exportToExcel);
+		panel.add(buyLongAndShortEveryDay);
 		northPanel.add(panel);
 
 		panel = new JPanel();
@@ -84,9 +86,11 @@ public class TransactionSummaryScreen extends JFrame {
 		con.add(northPanel, "North");
 		con.add(new JScrollPane(results));
 		con.add(component, "South");
+
 	}
 
 	private void fetch() {
+		
 
 		fetchThroughFetcher((ticker) -> strategy.getTransactionSummaries(ticker));
 	}
@@ -95,7 +99,13 @@ public class TransactionSummaryScreen extends JFrame {
 		String a = startDate.getText();
 		String b = endDate.getText();
 		List<String> dates = findDaysInBetween(a, b);
-		fetchThroughFetcher((ticker) -> strategy.getTransactionSummaries(ticker, dates));
+		boolean selection = buyLongAndShortEveryDay.isSelected();
+		if (selection == true) {
+			fetchThroughFetcher((ticker) -> strategy.processBuyingLongAndShortEveryDayWhenApplicable(ticker, dates));
+		} else {
+			fetchThroughFetcher((ticker) -> strategy.getTransactionSummaries(ticker, dates));
+		}
+
 	}
 
 	private List<String> findDaysInBetween(String a, String b) {
@@ -112,12 +122,15 @@ public class TransactionSummaryScreen extends JFrame {
 		return daysInBetween;
 	}
 
+	// private String[] columnsToBeDisplayedForBackTest = new String[]
+	// {"id","ticker","date","open","low","high","close","callStrikePrice","putStrikePrice","callGainOrLossFromStocks","putGainOrLossFromStocks","poten"
 	private void fetchThroughFetcher(TransactionSummaryFetcher fetcher) {
 		PassiveIncomeInput object = (PassiveIncomeInput) component.getObject();
 		System.out.println(Util.toJSON(object));
 		strategy.setPassiveIncomeInput(object);
 		List<TransactionSummary> summaries = fetcher.get(ticker.getText());
 		String summary = getSummary(summaries);
+
 		model.setTransactionSummaries(summaries);
 		model.fireTableDataChanged();
 		results.updateUI();
@@ -162,12 +175,13 @@ public class TransactionSummaryScreen extends JFrame {
 		result.append("Potential Call Option Gain : " + potentialCallOptionGain + "\n");
 		result.append("Potential Put Option Gain : " + potentialPutOptionGain + "\n");
 		result.append("Long Stock Transactions : " + totalLongStockTransactions + "\n");
-		result.append("Short Stock Transacgtions : " + totalShortStockTransactions + "\n");
+		result.append("Short Stock Transactions : " + totalShortStockTransactions + "\n");
 
 		return result.toString();
 	}
 
-	private void create() {
+	@Override
+	public void createComponents() {
 		ticker = new JTextField(10);
 		startDate = new JTextField(10);
 		startDate.setText("01-01-2023");
@@ -178,6 +192,8 @@ public class TransactionSummaryScreen extends JFrame {
 		fetchTransactions = new JButton("Backtest");
 		fetchWeeklyTransactions = new JButton("Backtest weekly");
 		exportToExcel = new JButton("Export to Excel");
+		buyLongAndShortEveryDay = new JCheckBox("Buy Long And Short EveryDay");
+		buyLongAndShortEveryDay.setSelected(true);
 		fetchTransactionsForDuration = new JButton("Backtest for the duration");
 		fetchTransactionsForDurationWeekly = new JButton("Backtest for the duration (weekly)");
 		fetchTransactionsForParticularDay = new JButton("Fetch Transactions of particular day");
@@ -191,7 +207,7 @@ public class TransactionSummaryScreen extends JFrame {
 
 		model = new TransactionSummaryTableModel();
 		results = new JTable(model);
-        results.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		results.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		strategy = new PassiveIncomeBackwardTestStrategy();
 
 		results.setAutoCreateRowSorter(true);
@@ -199,7 +215,7 @@ public class TransactionSummaryScreen extends JFrame {
 		component = new ObjectEditingComponent(new PassiveIncomeInput());
 
 	}
-	
+
 	private String getDate(int distanceFromToday) {
 		// "2023-01-31" , yyyy-mm-dd
 		LocalDate start = LocalDate.now();
@@ -215,14 +231,13 @@ public class TransactionSummaryScreen extends JFrame {
 		return s;
 	}
 
-
 	private void fetchTransactionsForParticularDay() {
 		// int selectedRow = results.getSelectedRow();
 		ListSelectionModel selection = results.getSelectionModel();
 		int selectedRow = selection.getMinSelectionIndex();
-		//selectedRow = selection.get
+		// selectedRow = selection.get
 		int row = results.convertRowIndexToView(selectedRow);
-		JOptionPane.showMessageDialog(null, "[selectedRow,row] = ["+selectedRow+","+row+"]");
+		JOptionPane.showMessageDialog(null, "[selectedRow,row] = [" + selectedRow + "," + row + "]");
 		TransactionSummary summary = model.getTransactionSummary(row);
 
 		String ticker = summary.ticker;
@@ -238,7 +253,12 @@ public class TransactionSummaryScreen extends JFrame {
 		String a = startDate.getText();
 		String b = endDate.getText();
 		List<String> dates = findDaysInBetween(a, b);
-		fetchThroughFetcher((ticker) -> strategy.getTransactionSummariesGroupedByBusinessWeek(ticker, dates));
+		boolean selection = buyLongAndShortEveryDay.isSelected();
+		if (selection == true) {
+			fetchThroughFetcher((ticker) -> strategy.processBuyingLongAndShortEveryDayWhenApplicable(ticker, dates));
+		} else {
+			fetchThroughFetcher((ticker) -> strategy.getTransactionSummariesGroupedByBusinessWeek(ticker, dates));
+		}
 	}
 
 	private void export() {
@@ -311,22 +331,33 @@ class TransactionSummaryTableModel extends AbstractTableModel {
 
 	public String getColumnName(int column) {
 
-		Field f = TransactionSummary.class.getDeclaredFields()[column];
+		Field f = getPotentialField(column);
 		return f.getName();
 	}
 
 	public Class getColumnClass(int column) {
-		Field f = TransactionSummary.class.getDeclaredFields()[column];
+		Field f = getPotentialField(column);
 		Class x = f.getDeclaringClass();
 		Class y = f.getType();
 		return y;
+	}
+
+	private Field getPotentialField(int column) {
+		try {
+			Field f = null;
+			f = TransactionSummary.class.getDeclaredFields()[column];
+			return f;
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			throw new RuntimeException(e);
+		}
 	}
 
 	@Override
 	public Object getValueAt(int rowIndex, int columnIndex) {
 		try {
 			TransactionSummary x = summaries.get(rowIndex);
-			Field f = x.getClass().getDeclaredFields()[columnIndex];
+			Field f = getPotentialField(columnIndex);
 			return f.get(x);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
