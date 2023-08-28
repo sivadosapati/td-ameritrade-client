@@ -406,7 +406,8 @@ public class PassiveIncomeStrategy extends BaseHandler {
 	private void placeShortStockOrderForPassiveIncome(String accountId, String stockTicker, BigDecimal stockPrice,
 			int numberOfStocks) {
 		HttpTdaClient client = getClient();
-		int numberOfStocksForShort = shortStockOrderCanBePlaced(accountId, numberOfStocks, stockTicker);
+		//int numberOfStocksForShort = shortStockOrderCanBePlaced(accountId, numberOfStocks, stockTicker);
+		int numberOfStocksForShort = numberOfStocks;
 		if (numberOfStocksForShort > 0) {
 
 			Order putStockOrder = makePutStockOrder(stockTicker, new BigDecimal(stockPrice.doubleValue() + 0.5f),
@@ -418,7 +419,8 @@ public class PassiveIncomeStrategy extends BaseHandler {
 	private void placeLongStockOrderForPassiveIncome(String accountId, String stockTicker, BigDecimal stockPrice,
 			int numberOfStocks) {
 		HttpTdaClient client = getClient();
-		int numberOfStocksForLong = longStockOrderCanBePlaced(accountId, numberOfStocks, stockTicker);
+		//int numberOfStocksForLong = longStockOrderCanBePlaced(accountId, numberOfStocks, stockTicker);
+		int numberOfStocksForLong = numberOfStocks;
 		if (numberOfStocksForLong > 0) {
 			Order longStockOrder = makeLongStockOrder(stockTicker, new BigDecimal(stockPrice.doubleValue() - 0.5f),
 					numberOfStocksForLong);
@@ -426,6 +428,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		}
 	}
 
+	
 	private int shortStockOrderCanBePlaced(String accountId, int numberOfStocks, String stockTicker) {
 		PositionsHandler handler = new PositionsHandler();
 		GroupedPositions gps = handler.getGroupedPositions(accountId);

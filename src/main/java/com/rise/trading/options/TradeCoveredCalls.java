@@ -13,8 +13,6 @@ import com.studerw.tda.client.HttpTdaClient;
 import com.studerw.tda.model.account.Duration;
 import com.studerw.tda.model.account.EquityInstrument;
 import com.studerw.tda.model.account.Instrument;
-import com.studerw.tda.model.account.Instrument.AssetType;
-import com.studerw.tda.model.account.OptionInstrument;
 import com.studerw.tda.model.account.Order;
 import com.studerw.tda.model.account.OrderLegCollection;
 import com.studerw.tda.model.account.OrderLegCollection.Instruction;
@@ -29,22 +27,25 @@ import com.studerw.tda.model.option.OptionChain;
 import com.studerw.tda.model.option.OptionChainReq;
 import com.studerw.tda.model.option.OptionChainReq.Range;
 
+import static com.rise.trading.options.Util.*;
+
 public class TradeCoveredCalls extends BaseHandler {
 
-	private OrderHandler orderHandler = new OrderHandler();
-	private PositionsHandler positionsManager = new PositionsHandler();
+	private static OrderHandler orderHandler = new OrderHandler();
+	private static PositionsHandler positionsManager = new PositionsHandler();
 
 	public static void main(String[] args) {
 		String accountId = Util.getAccountId1();
 		TradeCoveredCalls tcc = new TradeCoveredCalls();
-		HttpTdaClient client = Util.getHttpTDAClient();
+		HttpTdaClient client = getHttpTDAClient();
 		// tcc.tradeCoveredCallsOnAnAccount(client, accountId);
 		// List<Order> orders = tcc.getOrders(client, accountId);
 		// String json = Util.toJSON(orders);
 		// System.out.println(json);
 		// tcc.findPotentialCoveredCallTrades(Util.getAccountId1());
-		//tcc.displayInstruments(Util.getAccountId1());
-		System.out.println(Util.toJSON(tcc.getCurrentWorkingOrders(Util.getAccountId1())));
+		// tcc.displayInstruments(Util.getAccountId1());
+		// System.out.println(Util.toJSON(tcc.getCurrentWorkingOrders(Util.getAccountId1())));
+		System.out.println(Util.toJSON(positionsManager.getGroupedPosition(getAccountId1(), "QQQ")));
 
 	}
 
@@ -52,9 +53,9 @@ public class TradeCoveredCalls extends BaseHandler {
 		GroupedPositions gp = positionsManager.getGroupedPositions(accountId);
 		for (GroupedPosition x : gp.getGroupedPositions()) {
 			System.out.println(toJSON(x));
-			if( x.getEquity()!=null) {
-				System.out.println("Equity component -> "+x.getSymbol());
-				EquityInstrument ei = (EquityInstrument)x.getEquity().getInstrument();
+			if (x.getEquity() != null) {
+				System.out.println("Equity component -> " + x.getSymbol());
+				EquityInstrument ei = (EquityInstrument) x.getEquity().getInstrument();
 				System.out.println(toJSON(ei));
 				System.out.println(toJSON(x));
 			}
