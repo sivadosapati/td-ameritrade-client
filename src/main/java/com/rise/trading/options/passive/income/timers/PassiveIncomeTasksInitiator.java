@@ -61,10 +61,11 @@ public class PassiveIncomeTasksInitiator {
 							//System.out.println(day + " -> " + h + " -> " + m + " -> " + s);
 						}
 					} catch (Exception e) {
-
+						e.printStackTrace();
+						break;
 					}
 				}
-
+				System.out.println("Done execution for open and close orders for QQQ");
 			}
 
 			private Execution getExecution(Date d) {

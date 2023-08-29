@@ -193,6 +193,7 @@ public class TDAScreen extends JFrame {
 		private JPanel displayPanel;
 		private JButton placeOrder;
 		private JButton placeNextDayOrder;
+		private JButton placeWeeklyOrder;
 		private JButton placeClosingOrdersForOptions;
 		private JButton placeClosingOrdersForEquities;
 		private JButton placeCloseShortEquitiesWhenTheyAreInExpectedProfitOrLoss;
@@ -209,6 +210,7 @@ public class TDAScreen extends JFrame {
 			putDistance.setText("2");
 			placeOrder = new JButton("Passive Income");
 			placeNextDayOrder = new JButton("Passive Income For Next Day");
+			placeWeeklyOrder = new JButton("Passive Income For Weekly Options");
 			placeClosingOrdersForOptions = new JButton("Place Closing Orders for Options");
 			placeClosingOrdersForEquities = new JButton("Place Closing Orders for Equities");
 			adjustEquityPrice = new JButton("Adjust Equity Price For Working Orders");
@@ -230,6 +232,7 @@ public class TDAScreen extends JFrame {
 			panel = new JPanel();
 			panel.add(placeOrder);
 			panel.add(placeNextDayOrder);
+			panel.add(placeWeeklyOrder);
 			panel.add(placeClosingOrdersForOptions);
 			panel.add(placeClosingOrdersForEquities);
 			panel.add(adjustEquityPrice);
@@ -239,6 +242,7 @@ public class TDAScreen extends JFrame {
 			panel.add(placeCloseLongEquitiesWhenTheyAreInExpectedProfitOrLoss);
 			displayPanel.add(panel);
 			placeOrder.addActionListener((e) -> placePassiveIncomeOrders());
+			placeWeeklyOrder.addActionListener((e) -> placeWeeklyIncomeOrders());
 			placeNextDayOrder.addActionListener((e) -> placePassiveIncomeForNextDayOrders());
 			placeClosingOrdersForEquities.addActionListener((e) -> placeClosingOrdersForEquities());
 			placeClosingOrdersForOptions.addActionListener((e) -> placeClosingOrdersForOptions());
@@ -247,6 +251,15 @@ public class TDAScreen extends JFrame {
 					.addActionListener((e) -> placeCloseShortEquitiesWhenTheyAreExpectedToBeInProfitOrLoss());
 			placeCloseLongEquitiesWhenTheyAreInExpectedProfitOrLoss
 					.addActionListener((e) -> placeCloseLongEquitiesWhenTheyAreExpectedToBeInProfitOrLoss());
+		}
+
+		private void placeWeeklyIncomeOrders() {
+			String accountId = ((Account) accounts.getSelectedItem()).id;
+			String stockCode = stockTicker.getText();
+			int contracts = getInteger(numberOfContracts);
+			int call = getInteger(callDistance);
+			int put = getInteger(putDistance);
+			strategy.placeWeeklyTradeForPassiveIncome(accountId, stockCode, call, put, contracts);
 		}
 
 		private void adjustEquityPrices() {

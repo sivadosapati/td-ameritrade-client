@@ -32,8 +32,9 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		PassiveIncomeStrategy pis = new PassiveIncomeStrategy();
 		// pis.placeClosingTradesForOptionsOnDailyExpiringOptions(Util.getAccountId4(),"QQQ");
 		// pis.placeClosingTradesForEquityOnDailyExpiringOptions(Util.getAccountId4(),"QQQ");
-		pis.closeShortEquitiesIfTheyAreInProfitAndPlaceAnotherOrderIfThereAreSellOptions(Util.getAccountId4(), "QQQ", 1,
-				0.5);
+		// pis.closeShortEquitiesIfTheyAreInProfitAndPlaceAnotherOrderIfThereAreSellOptions(Util.getAccountId4(),
+		// "QQQ", 1,
+//				0.5);
 	}
 
 	public void closeSellOptionsThatAreInProfit(String accountId, String ticker, double gainPercentage) {
@@ -226,34 +227,37 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		List<Position> position = getOptionPositionsThatExpireOnThisDay(gps.getGroupedPosition(stock), day);
 		placeClosingTradesForEquityOnDailyExpiringOptions(accountId, position, gps);
 	}
-	public void adjustWorkingEquityOrdersByMovingTheClosingPrice(String accountId, String stock, double priceAdjustment) {
+
+	public void adjustWorkingEquityOrdersByMovingTheClosingPrice(String accountId, String stock,
+			double priceAdjustment) {
 		List<Order> orders = getCurrentWorkingOrders(accountId);
-		for( Order o : orders) {
+		for (Order o : orders) {
 			OrderLegCollection olc = o.getOrderLegCollection().iterator().next();
-			if( olc.getOrderLegType() == OrderLegType.EQUITY) {
-				if( olc.getInstruction() == Instruction.SELL_SHORT) {
-					if(o.getOrderType() == OrderType.STOP_LIMIT) {
+			if (olc.getOrderLegType() == OrderLegType.EQUITY) {
+				if (olc.getInstruction() == Instruction.SELL_SHORT) {
+					if (o.getOrderType() == OrderType.STOP_LIMIT) {
 						o.setStopPrice(new BigDecimal(o.getStopPrice().doubleValue() + priceAdjustment));
 						o.setPrice(o.getStopPrice());
-						//getClient().cancelOrder(accountId, o.getOrderId()+"");
-						//o.setOrderId(null);
+						// getClient().cancelOrder(accountId, o.getOrderId()+"");
+						// o.setOrderId(null);
 						getClient().replaceOrder(accountId, o);
 						continue;
 					}
 				}
-				if(olc.getInstruction() == Instruction.SELL) {
-					if(o.getOrderType() == OrderType.LIMIT) {
-						//o.setStopPrice(new BigDecimal(o.getStopPrice().doubleValue() + priceAdjustment));
+				if (olc.getInstruction() == Instruction.SELL) {
+					if (o.getOrderType() == OrderType.LIMIT) {
+						// o.setStopPrice(new BigDecimal(o.getStopPrice().doubleValue() +
+						// priceAdjustment));
 						o.setPrice(new BigDecimal(o.getPrice().doubleValue() + priceAdjustment));
-						//getClient().cancelOrder(accountId, o.getOrderId()+"");
-						//o.setOrderId(null);
+						// getClient().cancelOrder(accountId, o.getOrderId()+"");
+						// o.setOrderId(null);
 						getClient().replaceOrder(accountId, o);
-						//getClient().
+						// getClient().
 						continue;
 					}
 				}
 			}
-			
+
 		}
 	}
 
@@ -363,20 +367,74 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		placeShortStockOrderForPassiveIncome(accountId, stockTicker, putPrice, numberOfStocks);
 
 	}
+
+	public void placeWeeklyTradeForPassiveIncome(String accountId, String stockTicker, float callDistance,
+			float putDistance, int numberOfContracts) {
+		LocalDateTime friday = getImmediateFriday();
+		placeOptionTradesForPassiveIncome(accountId, stockTicker, callDistance, putDistance, numberOfContracts, friday, friday);
+	}
+
+	private LocalDateTime getImmediateFriday() {
+		LocalDateTime time = LocalDateTime.now();
+		DayOfWeek week = time.getDayOfWeek();
+		if (week == DayOfWeek.FRIDAY) {
+			return time;
+		}
+		if(week == DayOfWeek.THURSDAY) {
+			return time.plusDays(1);
+		}
+		if(week == DayOfWeek.WEDNESDAY) {
+			return time.plusDays(2);
+		}
+		if(week == DayOfWeek.TUESDAY) {
+			return time.plusDays(3);
+		}
+		if(week == DayOfWeek.MONDAY) {
+			return time.plusDays(4);
+		}
+		if(week == DayOfWeek.SUNDAY) {
+			return time.plusDays(5);
+		}
+		if(week == DayOfWeek.SATURDAY) {
+			return time.plusDays(6);
+		}
+				
+		return time;
+	}
+
 	public void placeDailyTradeForPassiveIncome(String accountId, String stockTicker, float callDistance,
 			float putDistance, int numberOfContracts) {
 		LocalDateTime to = getTheImmediateBusinessDay();
 		LocalDateTime from = to;
-		placeOptionTradesForPassiveIncome(accountId, stockTicker, callDistance, putDistance, numberOfContracts, from, to);
-	}
-	public void placeNextDayTradeForPassiveIncome(String accountId, String stockTicker, float callDistance, float putDistance, int numberOfContracts) {
-		LocalDateTime from = getTheNextBusinessDay();
-		LocalDateTime to = getTheNextBusinessDay();
-		placeOptionTradesForPassiveIncome(accountId, stockTicker, callDistance, putDistance, numberOfContracts, from, to);
+		placeOptionTradesForPassiveIncome(accountId, stockTicker, callDistance, putDistance, numberOfContracts, from,
+				to);
 	}
 
-	
-	public void placeOptionTradesForPassiveIncome(String accountId, String stockTicker, float callDistance, float putDistance, int numberOfContracts, LocalDateTime from, LocalDateTime to) {
+	public void placeDailyTradeForPassiveIncomeSmartly(String accountId, String stockTicker, float callDistance,
+			float putDistance) {
+		LocalDateTime to = getTheImmediateBusinessDay();
+		LocalDateTime from = to;
+		int numberOfContracts = findPotentialDailyNumberofContracts(accountId, stockTicker);
+
+		placeOptionTradesForPassiveIncome(accountId, stockTicker, callDistance, putDistance, numberOfContracts, from,
+				to);
+	}
+
+	private int findPotentialDailyNumberofContracts(String accountId, String stockTicker) {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+	public void placeNextDayTradeForPassiveIncome(String accountId, String stockTicker, float callDistance,
+			float putDistance, int numberOfContracts) {
+		LocalDateTime from = getTheNextBusinessDay();
+		LocalDateTime to = getTheNextBusinessDay();
+		placeOptionTradesForPassiveIncome(accountId, stockTicker, callDistance, putDistance, numberOfContracts, from,
+				to);
+	}
+
+	public void placeOptionTradesForPassiveIncome(String accountId, String stockTicker, float callDistance,
+			float putDistance, int numberOfContracts, LocalDateTime from, LocalDateTime to) {
 		HttpTdaClient client = getClient();
 		OptionChainReq request = makeOptionChainRequestForDailyTrade(stockTicker, from, to);
 		// OptionChain chain = client.getOptionChain(stockTicker);
@@ -400,13 +458,14 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		placeLongStockOrderForPassiveIncome(accountId, stockTicker, callPrice, numberOfStocks);
 		client.placeOrder(accountId, putOrder);
 		placeShortStockOrderForPassiveIncome(accountId, stockTicker, putPrice, numberOfStocks);
-		
+
 	}
-	
+
 	private void placeShortStockOrderForPassiveIncome(String accountId, String stockTicker, BigDecimal stockPrice,
 			int numberOfStocks) {
 		HttpTdaClient client = getClient();
-		//int numberOfStocksForShort = shortStockOrderCanBePlaced(accountId, numberOfStocks, stockTicker);
+		// int numberOfStocksForShort = shortStockOrderCanBePlaced(accountId,
+		// numberOfStocks, stockTicker);
 		int numberOfStocksForShort = numberOfStocks;
 		if (numberOfStocksForShort > 0) {
 
@@ -419,7 +478,8 @@ public class PassiveIncomeStrategy extends BaseHandler {
 	private void placeLongStockOrderForPassiveIncome(String accountId, String stockTicker, BigDecimal stockPrice,
 			int numberOfStocks) {
 		HttpTdaClient client = getClient();
-		//int numberOfStocksForLong = longStockOrderCanBePlaced(accountId, numberOfStocks, stockTicker);
+		// int numberOfStocksForLong = longStockOrderCanBePlaced(accountId,
+		// numberOfStocks, stockTicker);
 		int numberOfStocksForLong = numberOfStocks;
 		if (numberOfStocksForLong > 0) {
 			Order longStockOrder = makeLongStockOrder(stockTicker, new BigDecimal(stockPrice.doubleValue() - 0.5f),
@@ -428,7 +488,6 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		}
 	}
 
-	
 	private int shortStockOrderCanBePlaced(String accountId, int numberOfStocks, String stockTicker) {
 		PositionsHandler handler = new PositionsHandler();
 		GroupedPositions gps = handler.getGroupedPositions(accountId);

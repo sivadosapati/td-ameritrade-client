@@ -26,6 +26,7 @@ import com.studerw.tda.model.option.Option;
 import com.studerw.tda.model.option.OptionChain;
 import com.studerw.tda.model.option.OptionChainReq;
 import com.studerw.tda.model.option.OptionChainReq.Range;
+import com.studerw.tda.model.user.Account;
 
 import static com.rise.trading.options.Util.*;
 
@@ -45,8 +46,15 @@ public class TradeCoveredCalls extends BaseHandler {
 		// tcc.findPotentialCoveredCallTrades(Util.getAccountId1());
 		// tcc.displayInstruments(Util.getAccountId1());
 		// System.out.println(Util.toJSON(tcc.getCurrentWorkingOrders(Util.getAccountId1())));
-		System.out.println(Util.toJSON(positionsManager.getGroupedPosition(getAccountId1(), "QQQ")));
+		//System.out.println(Util.toJSON(positionsManager.getGroupedPosition(getAccountId1(), "QQQ")));
+		displayAccount(client, getAccountId1());
 
+	}
+
+	private static void displayAccount(HttpTdaClient client, String accountId) {
+		SecuritiesAccount account = client.getAccount(accountId, true, true);
+		System.out.println(Util.toJSON(account));
+		
 	}
 
 	private void displayInstruments(String accountId) {
