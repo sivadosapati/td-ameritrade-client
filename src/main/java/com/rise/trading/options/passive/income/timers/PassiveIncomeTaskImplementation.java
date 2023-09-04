@@ -9,7 +9,7 @@ public class PassiveIncomeTaskImplementation implements PassiveIncomeTask {
 	@Override
 	public void placeOrderAtMarketOpen(PassiveIncomeInput input) {
 		strategy.placeDailyTradeForPassiveIncome(input.getAccountId(), input.getTicker(), input.getStrikeDistanceForCall(), input.getStrikeDistanceForPut(), input.getContracts());
-
+		strategy.placeClosingTradesForOptionsOnDailyExpiringOptions(input.getAccountId(), input.getTicker());
 	}
 
 	@Override

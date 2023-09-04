@@ -193,7 +193,7 @@ public interface TdaClient {
   void placeOrder(String accountId, Order order);
   
   
-  void replaceOrder(String accountId, Order order);
+  void replaceOrder(String accountId, Order order, String orderId);
 
   /**
    * <p>

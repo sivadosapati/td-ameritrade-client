@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -22,6 +23,19 @@ import java.util.TimeZone;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studerw.tda.client.HttpTdaClient;
+import com.studerw.tda.model.account.ComplexOrderStrategyType;
+import com.studerw.tda.model.account.Duration;
+import com.studerw.tda.model.account.EquityInstrument;
+import com.studerw.tda.model.account.Instrument;
+import com.studerw.tda.model.account.Instrument.AssetType;
+import com.studerw.tda.model.account.OptionInstrument;
+import com.studerw.tda.model.account.OptionInstrument.PutCall;
+import com.studerw.tda.model.account.Order;
+import com.studerw.tda.model.account.OrderLegCollection;
+import com.studerw.tda.model.account.OrderLegCollection.Instruction;
+import com.studerw.tda.model.account.OrderStrategyType;
+import com.studerw.tda.model.account.OrderType;
+import com.studerw.tda.model.account.Session;
 
 public class Util {
 
@@ -31,7 +45,7 @@ public class Util {
 	public static void main(String args[]) throws Exception {
 		playWithDates();
 	}
-	
+
 	public static String getEODToken() {
 		return props.getProperty("eod.api.token");
 	}
@@ -39,9 +53,9 @@ public class Util {
 	private static void playWithDates() throws Exception {
 		String ss = "6-11-2019";
 		DateTimeFormatter dtf = DateTimeFormatter.ofPattern("d-M-yyyy");
-		LocalDate x = LocalDate.parse(ss,dtf);
+		LocalDate x = LocalDate.parse(ss, dtf);
 		System.out.println(x);
-		
+
 		LocalDate ld = LocalDate.now();
 		// System.out.println(ld.);
 		DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -184,5 +198,87 @@ public class Util {
 
 	public static Accounts getAccounts() {
 		return accounts;
+	}
+
+	public static Order makeSellOptionOrder(String optionSymbol, int quantity) {
+		Order o = new Order();
+		o.setSession(Session.NORMAL);
+		o.setComplexOrderStrategyType(ComplexOrderStrategyType.NONE);
+		o.setDuration(Duration.DAY);
+		o.setOrderType(OrderType.MARKET);
+		OrderLegCollection olc = new OrderLegCollection();
+		olc.setInstruction(Instruction.SELL_TO_OPEN);
+		olc.setQuantity(new BigDecimal(quantity));
+		OptionInstrument oi = new OptionInstrument();
+		olc.setInstrument(oi);
+		oi.setAssetType(AssetType.OPTION);
+		oi.setSymbol(optionSymbol);
+		oi.setOptionDeliverables(null);
+		oi.setPutCall(OptionInstrument.PutCall.CALL);
+
+		o.getOrderLegCollection().add(olc);
+
+		return o;
+	}
+
+	public static Order makeOption(String optionSymbol, int quantity, Duration d, double price,
+			OptionInstrument.PutCall pc, OrderType type, Instruction i) {
+		Order o = new Order();
+		o.setSession(Session.NORMAL);
+		o.setComplexOrderStrategyType(ComplexOrderStrategyType.NONE);
+		o.setOrderStrategyType(OrderStrategyType.SINGLE);
+		o.setDuration(d);
+		o.setOrderType(type);
+		BigDecimal bd = new BigDecimal(price);
+		if (type != OrderType.MARKET) {
+			o.setPrice(bd);
+			if (type == OrderType.STOP_LIMIT) {
+				o.setStopPrice(bd);
+			}
+		}
+		OrderLegCollection olc = new OrderLegCollection();
+		olc.setInstruction(i);
+		olc.setQuantity(new BigDecimal(quantity));
+		OptionInstrument oi = new OptionInstrument();
+		olc.setInstrument(oi);
+		oi.setAssetType(AssetType.OPTION);
+		oi.setSymbol(optionSymbol);
+		oi.setOptionDeliverables(null);
+		oi.setPutCall(pc);
+
+		o.getOrderLegCollection().add(olc);
+
+		return o;
+
+	}
+
+	public static Order makeStockOrder(String stockTicker, BigDecimal price, int numberOfStocks,
+			Instruction instruction, OrderType orderType) {
+		BigDecimal quantity = new BigDecimal(numberOfStocks);
+		Order order = new Order();
+		order.setOrderType(orderType);
+		order.setSession(Session.NORMAL);
+		order.setDuration(Duration.DAY);
+		order.setQuantity(quantity);
+		order.setPrice(price);
+		if (orderType == OrderType.STOP_LIMIT) {
+			order.setStopPrice(price);
+		}
+		order.setOrderStrategyType(OrderStrategyType.SINGLE);
+		// order.setComplexOrderStrategyType(ComplexOrderStrategyType.NONE);
+
+		OrderLegCollection olc = new OrderLegCollection();
+
+		olc.setInstruction(instruction);
+		olc.setQuantity(quantity);
+		order.getOrderLegCollection().add(olc);
+
+		EquityInstrument instrument = new EquityInstrument();
+		instrument.setSymbol(stockTicker);
+		instrument.setAssetType(AssetType.EQUITY);
+		olc.setInstrument(instrument);
+		// LOGGER.debug(order.toString());
+		return order;
+
 	}
 }

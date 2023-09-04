@@ -240,7 +240,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 						o.setPrice(o.getStopPrice());
 						// getClient().cancelOrder(accountId, o.getOrderId()+"");
 						// o.setOrderId(null);
-						getClient().replaceOrder(accountId, o);
+						getClient().replaceOrder(accountId, o, o.getOrderId()+"");
 						continue;
 					}
 				}
@@ -251,8 +251,16 @@ public class PassiveIncomeStrategy extends BaseHandler {
 						o.setPrice(new BigDecimal(o.getPrice().doubleValue() + priceAdjustment));
 						// getClient().cancelOrder(accountId, o.getOrderId()+"");
 						// o.setOrderId(null);
-						getClient().replaceOrder(accountId, o);
+						getClient().replaceOrder(accountId, o, o.getOrderId()+"");
 						// getClient().
+						continue;
+					}
+				}
+				if (olc.getInstruction() == Instruction.BUY) {
+					if( o.getOrderType() == OrderType.STOP_LIMIT) {
+						o.setStopPrice(new BigDecimal(o.getStopPrice().doubleValue() - priceAdjustment));
+						o.setPrice(o.getStopPrice());
+						getClient().replaceOrder(accountId, o, o.getOrderId()+"");
 						continue;
 					}
 				}
@@ -533,32 +541,8 @@ public class PassiveIncomeStrategy extends BaseHandler {
 
 	private Order makeStockOrder(String stockTicker, BigDecimal price, int numberOfStocks, Instruction instruction,
 			OrderType orderType) {
-		BigDecimal quantity = new BigDecimal(numberOfStocks);
-		Order order = new Order();
-		order.setOrderType(orderType);
-		order.setSession(Session.NORMAL);
-		order.setDuration(Duration.DAY);
-		order.setQuantity(quantity);
-		order.setPrice(price);
-		if (orderType == OrderType.STOP_LIMIT) {
-			order.setStopPrice(price);
-		}
-		order.setOrderStrategyType(OrderStrategyType.SINGLE);
-		// order.setComplexOrderStrategyType(ComplexOrderStrategyType.NONE);
 
-		OrderLegCollection olc = new OrderLegCollection();
-
-		olc.setInstruction(instruction);
-		olc.setQuantity(quantity);
-		order.getOrderLegCollection().add(olc);
-
-		EquityInstrument instrument = new EquityInstrument();
-		instrument.setSymbol(stockTicker);
-		instrument.setAssetType(AssetType.EQUITY);
-		olc.setInstrument(instrument);
-		// LOGGER.debug(order.toString());
-		return order;
-
+		return Util.makeStockOrder(stockTicker, price, numberOfStocks, instruction, orderType);
 	}
 
 	private Order makeLongStockOrder(String stockTicker, BigDecimal stockPrice, int numberOfStocks) {

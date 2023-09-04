@@ -370,7 +370,7 @@ public class HttpTdaClient implements TdaClient {
         .build();
 
     String json = DefaultMapper.toJson(order);
-    //System.out.println(json);
+    System.out.println(json);
     RequestBody body = RequestBody.create(MediaType.parse("application/json"), json);
     Request request = new Request.Builder().url(url).
         headers(defaultHeaders())
@@ -388,14 +388,19 @@ public class HttpTdaClient implements TdaClient {
 
   }
   
-  @Override
-  public void replaceOrder(String accountId, Order order) {
+
+  public void replaceOrderOld(String accountId, Order order) {
+	  cancelOrder(accountId, order.getOrderId()+"");
+	  order.setOrderId(null);
+	  placeOrder(accountId, order);
+  }
+  public void replaceOrder(String accountId, Order order, String orderId) {
 	   LOGGER.info("Replacing Order for account[{}] -> {}", accountId, order);
 	    if (StringUtils.isBlank(accountId)) {
 	      throw new IllegalArgumentException("accountId cannot be blank.");
 	    }
 
-	    HttpUrl url = baseUrl("accounts", accountId, "orders", order.getOrderId()+"")
+	    HttpUrl url = baseUrl("accounts", accountId, "orders", orderId)
 	        .build();
 	    //Builder urlBuilder = baseUrl("accounts", accountId, "orders", String.valueOf(orderId));
 

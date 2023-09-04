@@ -15,7 +15,7 @@ public class PassiveIncomeTasksInitiator {
 		Timer timer = new Timer();
 		PassiveIncomeInput open = makeInputForOpen();
 		PassiveIncomeInput close = makeInputForClose();
-	
+
 		TimerTask tt = new TimerTask() {
 
 			class Execution {
@@ -39,26 +39,30 @@ public class PassiveIncomeTasksInitiator {
 						int month = d.getMonth();
 						int year = d.getYear();
 						if (day == 1 || day == 2 || day == 3 || day == 4 || day == 5) {
-							if (h == 6 && m == 30 && s <= 5) {
+							if (h == 6 && m == 30 && s <= 30) {
 								Execution e = getExecution(d);
-								if( e.open == false) {
-									System.out.println("Executing open order -> "+getKey(d)+" -> "+day + " -> " + h + " -> " + m + " -> " + s);
+								if (e.open == false) {
+									System.out.println("Executing open order -> " + getKey(d) + " -> " + day + " -> "
+											+ h + " -> " + m + " -> " + s);
 									implementation.placeOrderAtMarketOpen(open);
 									e.open = true;
-									System.out.println("Done open order -> "+getKey(d)+" -> "+day + " -> " + h + " -> " + m + " -> " + new Date().getSeconds());
+									System.out.println("Done open order -> " + getKey(d) + " -> " + day + " -> " + h
+											+ " -> " + m + " -> " + new Date().getSeconds());
 								}
 							}
-							if (h == 12 && m == 59 && s <= 5) {
+							if (h == 12 && m == 59 && s <= 30) {
 								Execution e = getExecution(d);
-								if( e.close == false) {
-									System.out.println("Executing close order -> "+getKey(d)+" -> "+day + " -> " + h + " -> " + m + " -> " + s);
+								if (e.close == false) {
+									System.out.println("Executing close order -> " + getKey(d) + " -> " + day + " -> "
+											+ h + " -> " + m + " -> " + s);
 									implementation.placeOrderAtMarketClose(close);
 									e.close = true;
-									System.out.println("Done close order -> "+getKey(d)+" -> "+day + " -> " + h + " -> " + m + " -> " + new Date().getSeconds());
+									System.out.println("Done close order -> " + getKey(d) + " -> " + day + " -> " + h
+											+ " -> " + m + " -> " + new Date().getSeconds());
 
 								}
 							}
-							//System.out.println(day + " -> " + h + " -> " + m + " -> " + s);
+							System.out.println(day + " -> " + h + " -> " + m + " -> " + s);
 						}
 					} catch (Exception e) {
 						e.printStackTrace();
@@ -71,7 +75,7 @@ public class PassiveIncomeTasksInitiator {
 			private Execution getExecution(Date d) {
 				String k = getKey(d);
 				Execution e = executions.get(k);
-				if( e == null) {
+				if (e == null) {
 					e = new Execution();
 					executions.put(k, e);
 				}
@@ -96,13 +100,14 @@ public class PassiveIncomeTasksInitiator {
 		input.setStrikeDistanceForPut(2);
 		return input;
 	}
+
 	private static PassiveIncomeInput makeInputForClose() {
 		PassiveIncomeInput input = new PassiveIncomeInput();
 		input.setAccountId(Util.getAccountId1());
 		input.setTicker("QQQ");
 		input.setContracts(1);
-		input.setStrikeDistanceForCall(1);
-		input.setStrikeDistanceForPut(1);
+		input.setStrikeDistanceForCall(2);
+		input.setStrikeDistanceForPut(2);
 		return input;
 	}
 
