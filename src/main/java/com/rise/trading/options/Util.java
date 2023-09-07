@@ -147,6 +147,10 @@ public class Util {
 	public static String getAccountId1() {
 		return props.getProperty("account1.account.id");
 	}
+	
+	public static String getAccountId6() {
+		return props.getProperty("account6.account.id");
+	}
 
 	public static List<String> getSymbolsToBeSkipped(String accountId) {
 
@@ -229,13 +233,19 @@ public class Util {
 		o.setOrderStrategyType(OrderStrategyType.SINGLE);
 		o.setDuration(d);
 		o.setOrderType(type);
+		
 		BigDecimal bd = new BigDecimal(price);
-		if (type != OrderType.MARKET) {
-			o.setPrice(bd);
-			if (type == OrderType.STOP_LIMIT) {
-				o.setStopPrice(bd);
-			}
+		if (type == OrderType.STOP) {
+			o.setStopPrice(bd);
 		}
+		if (type == OrderType.STOP_LIMIT) {
+			o.setStopPrice(bd);
+			o.setPrice(bd);
+		}
+		if( type == OrderType.LIMIT) {
+			o.setPrice(bd);
+		}
+	
 		OrderLegCollection olc = new OrderLegCollection();
 		olc.setInstruction(i);
 		olc.setQuantity(new BigDecimal(quantity));
