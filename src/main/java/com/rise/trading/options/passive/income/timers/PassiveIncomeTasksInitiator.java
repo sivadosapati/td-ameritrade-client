@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import com.rise.trading.options.OrderTests;
 import com.rise.trading.options.Util;
 
 public class PassiveIncomeTasksInitiator {
@@ -39,30 +40,33 @@ public class PassiveIncomeTasksInitiator {
 						int month = d.getMonth();
 						int year = d.getYear();
 						if (day == 1 || day == 2 || day == 3 || day == 4 || day == 5) {
-							if (h == 6 && m == 30 && s <= 30) {
+							if (h == 6 && m == 30 && s <= 15) {
+								System.out.println(day + " -> " + h + " -> " + m + " -> " + s);
 								Execution e = getExecution(d);
 								if (e.open == false) {
 									System.out.println("Executing open order -> " + getKey(d) + " -> " + day + " -> "
 											+ h + " -> " + m + " -> " + s);
-									implementation.placeOrderAtMarketOpen(open);
+									//implementation.placeOrderAtMarketOpen(open);
+									OrderTests.main(null);
 									e.open = true;
 									System.out.println("Done open order -> " + getKey(d) + " -> " + day + " -> " + h
 											+ " -> " + m + " -> " + new Date().getSeconds());
 								}
 							}
-							if (h == 12 && m == 59 && s <= 30) {
+							if (h == 12 && m == 59 && s <= 15) {
+								System.out.println(day + " -> " + h + " -> " + m + " -> " + s);
 								Execution e = getExecution(d);
 								if (e.close == false) {
 									System.out.println("Executing close order -> " + getKey(d) + " -> " + day + " -> "
 											+ h + " -> " + m + " -> " + s);
-									implementation.placeOrderAtMarketClose(close);
+									//implementation.placeOrderAtMarketClose(close);
 									e.close = true;
 									System.out.println("Done close order -> " + getKey(d) + " -> " + day + " -> " + h
 											+ " -> " + m + " -> " + new Date().getSeconds());
 
 								}
 							}
-							System.out.println(day + " -> " + h + " -> " + m + " -> " + s);
+							//System.out.println(day + " -> " + h + " -> " + m + " -> " + s);
 						}
 					} catch (Exception e) {
 						e.printStackTrace();

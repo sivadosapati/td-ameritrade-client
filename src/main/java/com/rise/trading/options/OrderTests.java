@@ -28,28 +28,47 @@ public class OrderTests {
 		// fetchOrders(Util.getAccountId6());
 		// testSellCallOrderForQQQ();
 		// testSellPutOrderForQQQ();
-		// OptionSellCallPut oscp = new OptionSellCallPut("QQQ", "090623", 1, 1, 377,
-		// 375, 368, 384, 0.25, OrderType.MARKET);
+		OptionSellCallPut oscp = new OptionSellCallPut("QQQ", "090823", 1, 1, 374,
+		373, 372, 377, 0.10, OrderType.MARKET);
 		String symbol = "QQQ";
 		Quote quote = Util.getHttpTDAClient().fetchQuote(symbol);
 		double price = getPrice(quote);
 		String date = getDate();
 		System.out.println(price + "->"+ date);
 
-		OptionSellCallPut oscp = makeOptionSellCallPutForMarket(symbol, date, price, 0.25, OrderType.LIMIT);
+		//OptionSellCallPut oscp = makeOptionSellCallPutForMarket(symbol, date, price, 0.25, OrderType.MARKET);
 		// testSellOrderForQQQ(Util.getAccountId6(),oscp, 1, 5);
 		// testAdvancedSellOrders(Util.getAccountId1(), oscp, 2, 3);
 		String accountId = Util.getAccountId1();
 		int numberOfContracts = 1;
 		int numberOfCycles = 5;
 		testAdvancedSellOrders(accountId, oscp.getSellOrderForCall(), numberOfContracts, numberOfCycles);
-		testAdvancedSellOrders(accountId, oscp.getSellOrderForPut(), numberOfContracts, numberOfCycles);
+		//testAdvancedSellOrders(accountId, oscp.getSellOrderForPut(), numberOfContracts, numberOfCycles);
 	}
+	
+	private static void dailySellCalls(String account, String stock, int numberOfContracts, int numberOfCycles, double stopLoss) {
+		Quote quote = Util.getHttpTDAClient().fetchQuote(account);
+		double price = getPrice(quote);
+		String date = getDate();
+		OptionSellCallPut oscp = makeOptionSellCallPutForMarket(stock, date, price, stopLoss, OrderType.MARKET);
+		testAdvancedSellOrders(account, oscp.getSellOrderForCall(), numberOfContracts, numberOfCycles);
+	}
+	private static void dailySellPuts(String account, String stock, int numberOfContracts, int numberOfCycles, double stopLoss) {
+		Quote quote = Util.getHttpTDAClient().fetchQuote(account);
+		double price = getPrice(quote);
+		String date = getDate();
+		OptionSellCallPut oscp = makeOptionSellCallPutForMarket(stock, date, price, stopLoss, OrderType.MARKET);
+		testAdvancedSellOrders(account, oscp.getSellOrderForPut(), numberOfContracts, numberOfCycles);
+			
+	}
+	
+	
 
 	private static String getDate() {
-		// return "090723";
+		
 		Date d = new Date();
 		SimpleDateFormat sdf = new SimpleDateFormat("MMddYY");
+		//return "090723";
 		return sdf.format(d);
 	}
 
