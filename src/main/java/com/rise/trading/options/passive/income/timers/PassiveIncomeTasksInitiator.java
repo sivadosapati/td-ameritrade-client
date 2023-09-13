@@ -25,10 +25,30 @@ public class PassiveIncomeTasksInitiator {
 			}
 
 			Map<String, Execution> executions = new HashMap<String, Execution>();
+			
+			private void dailySellCalls() {
+				OrderTests.dailySellCalls(Util.getAccountId1(), "QQQ", 2, 3, 0.25);
+				OrderTests.dailySellCalls(Util.getAccountId1(), "SPY", 1, 3, 0.25);
+				
+			}
+			
+			private void dailySellPuts() {
+				OrderTests.dailySellPuts(Util.getAccountId1(), "QQQ", 2, 3, 0.25);
+				OrderTests.dailySellPuts(Util.getAccountId1(), "SPY", 1, 3, 0.25);
+			}
+			
+			private void open() {
+				dailySellCalls();
+				dailySellPuts();
+			}
+			
+			private void close() {
+				
+			}
 
 			@Override
 			public void run() {
-				System.out.println("Starting execution for open and close orders for QQQ");
+				System.out.println("Starting execution for open and close orders");
 				while (true) {
 					try {
 						Thread.sleep(1000);
@@ -44,12 +64,12 @@ public class PassiveIncomeTasksInitiator {
 								System.out.println(day + " -> " + h + " -> " + m + " -> " + s);
 								Execution e = getExecution(d);
 								if (e.open == false) {
-									System.out.println("Executing open order -> " + getKey(d) + " -> " + day + " -> "
+									System.out.println("Executing opening orders -> " + getKey(d) + " -> " + day + " -> "
 											+ h + " -> " + m + " -> " + s);
 									//implementation.placeOrderAtMarketOpen(open);
-									OrderTests.main(null);
+									open();
 									e.open = true;
-									System.out.println("Done open order -> " + getKey(d) + " -> " + day + " -> " + h
+									System.out.println("Done opening orders -> " + getKey(d) + " -> " + day + " -> " + h
 											+ " -> " + m + " -> " + new Date().getSeconds());
 								}
 							}
@@ -59,7 +79,7 @@ public class PassiveIncomeTasksInitiator {
 								if (e.close == false) {
 									System.out.println("Executing close order -> " + getKey(d) + " -> " + day + " -> "
 											+ h + " -> " + m + " -> " + s);
-									//implementation.placeOrderAtMarketClose(close);
+									close();
 									e.close = true;
 									System.out.println("Done close order -> " + getKey(d) + " -> " + day + " -> " + h
 											+ " -> " + m + " -> " + new Date().getSeconds());
@@ -73,7 +93,7 @@ public class PassiveIncomeTasksInitiator {
 						break;
 					}
 				}
-				System.out.println("Done execution for open and close orders for QQQ");
+				System.out.println("Done execution for open and close orders");
 			}
 
 			private Execution getExecution(Date d) {

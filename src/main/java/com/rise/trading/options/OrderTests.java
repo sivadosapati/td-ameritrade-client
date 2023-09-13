@@ -1,6 +1,7 @@
 package com.rise.trading.options;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -18,72 +19,126 @@ import com.studerw.tda.model.account.OrderType;
 import com.studerw.tda.model.quote.EquityQuote;
 import com.studerw.tda.model.quote.EtfQuote;
 import com.studerw.tda.model.quote.Quote;
+import static com.rise.trading.options.Util.*;
 
 public class OrderTests {
 
-	public static void main(String[] args) throws Exception {
+	private static void dailySellCalls() {
+		OrderTests.dailySellCalls(Util.getAccountId1(), "QQQ", 1, 3, 0.25);
+		//OrderTests.dailySellCalls(Util.getAccountId1(), "SPY", 1, 3, 0.25);
+
+	}
+
+	private static void dailySellPuts() {
+		OrderTests.dailySellPuts(Util.getAccountId1(), "QQQ", 1, 3, 0.25);
+		//OrderTests.dailySellPuts(Util.getAccountId1(), "SPY", 1, 3, 0.25);
+	}
+
+	public static void main(String args[]) throws Exception {
+		fetchOrders(Util.getAccountId1());
+		BigDecimal originalValue = new BigDecimal("0.010001232132675");
+
+		// Round to 2 decimal places using RoundingMode.HALF_UP
+		BigDecimal roundedValue = originalValue.setScale(2, RoundingMode.HALF_UP);
+
+		System.out.println("Original Value: " + originalValue);
+		System.out.println("Rounded Value: " + roundedValue);
+
+		// OrderTests.dailySellCalls(Util.getAccountId1(), "QQQ", 1, 3, 0.20);
+		// OrderTests.dailySellPuts(Util.getAccountId1(), "QQQ", 1, 3, 0.20);
+		OptionSellCallPut oscp = makeOptionSellCallPutForMarket("QQQ", "091223", 376.87, 0.2, OrderType.LIMIT);
+		//testAdvancedSellOrders(getAccountId1(), oscp.getSellOrderForCall(), 5, 3);
+		//testAdvancedSellOrders(getAccountId1(), oscp.getSellOrderForPut(), 5, 3);
+
+		dailySellCalls();
+		dailySellPuts();
+	}
+
+	public static void mainxx(String[] args) throws Exception {
 		// replaceOrder();
 		// testOrderChain();
 		// testSellCallOrderChain();
 		// fetchOrders(Util.getAccountId6());
 		// testSellCallOrderForQQQ();
 		// testSellPutOrderForQQQ();
-		OptionSellCallPut oscp = new OptionSellCallPut("QQQ", "090823", 1, 1, 374,
-		373, 372, 377, 0.10, OrderType.MARKET);
+		OptionSellCallPut oscp = new OptionSellCallPut("QQQ", "091223", 1, 1, 378, 376, 370, 384, 0.20,
+				OrderType.LIMIT);
 		String symbol = "QQQ";
 		Quote quote = Util.getHttpTDAClient().fetchQuote(symbol);
 		double price = getPrice(quote);
 		String date = getDate();
-		System.out.println(price + "->"+ date);
+		System.out.println(price + "->" + date);
 
-		//OptionSellCallPut oscp = makeOptionSellCallPutForMarket(symbol, date, price, 0.25, OrderType.MARKET);
+		// OptionSellCallPut oscp = makeOptionSellCallPutForMarket(symbol, date, price,
+		// 0.25, OrderType.MARKET);
 		// testSellOrderForQQQ(Util.getAccountId6(),oscp, 1, 5);
 		// testAdvancedSellOrders(Util.getAccountId1(), oscp, 2, 3);
 		String accountId = Util.getAccountId1();
-		int numberOfContracts = 1;
-		int numberOfCycles = 5;
-		testAdvancedSellOrders(accountId, oscp.getSellOrderForCall(), numberOfContracts, numberOfCycles);
-		//testAdvancedSellOrders(accountId, oscp.getSellOrderForPut(), numberOfContracts, numberOfCycles);
+		int numberOfContracts = 3;
+		int numberOfCycles = 1;
+		// testAdvancedSellOrders(accountId, oscp.getSellOrderForCall(),
+		// numberOfContracts, numberOfCycles);
+		// testAdvancedSellOrders(accountId, oscp.getSellOrderForPut(),
+		// numberOfContracts, numberOfCycles);
+
+		// Util.getHttpTDAClient().placeOrder(Util.getAccountId1(),
+		// Util.makeOptionWithClosingOrderForSellCallsOrPuts("QQQ_091223C378", 5,
+		// Duration.GOOD_TILL_CANCEL, 1, OptionInstrument.PutCall.CALL, OrderType.LIMIT,
+		// Instruction.SELL_TO_OPEN));
+		// Util.getHttpTDAClient().placeOrder(Util.getAccountId1(),Util.makeOptionWithClosingOrderForSellCallsOrPuts("QQQ_091223P376",
+		// 5, Duration.GOOD_TILL_CANCEL, 1, OptionInstrument.PutCall.PUT,
+		// OrderType.LIMIT, Instruction.SELL_TO_OPEN));
+
+		getHttpTDAClient().placeOrder(getAccountId1(),
+				makeOptionWithClosingOrderForSellCallOrPutWithVerticalProtection("QQQ_091223C378", "QQQ_091223C383", 5,
+						Duration.GOOD_TILL_CANCEL, 1, OptionInstrument.PutCall.CALL, OrderType.LIMIT,
+						Instruction.SELL_TO_OPEN));
+		getHttpTDAClient().placeOrder(getAccountId1(),
+				makeOptionWithClosingOrderForSellCallOrPutWithVerticalProtection("QQQ_091223P376", "QQQ_091223P371", 5,
+						Duration.GOOD_TILL_CANCEL, 1, OptionInstrument.PutCall.PUT, OrderType.LIMIT,
+						Instruction.SELL_TO_OPEN));
 	}
-	
-	private static void dailySellCalls(String account, String stock, int numberOfContracts, int numberOfCycles, double stopLoss) {
-		Quote quote = Util.getHttpTDAClient().fetchQuote(account);
+
+	public static void dailySellCalls(String account, String stock, int numberOfContracts, int numberOfCycles,
+			double stopLoss) {
+		Quote quote = Util.getHttpTDAClient().fetchQuote(stock);
 		double price = getPrice(quote);
 		String date = getDate();
 		OptionSellCallPut oscp = makeOptionSellCallPutForMarket(stock, date, price, stopLoss, OrderType.MARKET);
 		testAdvancedSellOrders(account, oscp.getSellOrderForCall(), numberOfContracts, numberOfCycles);
 	}
-	private static void dailySellPuts(String account, String stock, int numberOfContracts, int numberOfCycles, double stopLoss) {
-		Quote quote = Util.getHttpTDAClient().fetchQuote(account);
+
+	public static void dailySellPuts(String account, String stock, int numberOfContracts, int numberOfCycles,
+			double stopLoss) {
+		Quote quote = Util.getHttpTDAClient().fetchQuote(stock);
 		double price = getPrice(quote);
 		String date = getDate();
 		OptionSellCallPut oscp = makeOptionSellCallPutForMarket(stock, date, price, stopLoss, OrderType.MARKET);
 		testAdvancedSellOrders(account, oscp.getSellOrderForPut(), numberOfContracts, numberOfCycles);
-			
+
 	}
-	
-	
 
 	private static String getDate() {
-		
+
 		Date d = new Date();
 		SimpleDateFormat sdf = new SimpleDateFormat("MMddYY");
-		//return "090723";
+		// return "090723";
 		return sdf.format(d);
 	}
 
 	private static double getPrice(Quote quote) {
 		if (quote instanceof EtfQuote) {
-			EtfQuote x = (EtfQuote)quote;
+			EtfQuote x = (EtfQuote) quote;
 			return x.getBidPrice().doubleValue();
 		}
-		if(quote instanceof EquityQuote) {
-			EquityQuote x = (EquityQuote)quote;
+		if (quote instanceof EquityQuote) {
+			EquityQuote x = (EquityQuote) quote;
 			return x.getBidPrice().doubleValue();
 		}
 		throw new RuntimeException("CODE ME");
-		
+
 	}
+
 	private static OptionSellCallPut makeOptionSellCallPutForMarket(String stock, String date, double stockPrice,
 			double stopLossForLong, OrderType orderType) {
 		int callStrike = (int) Math.ceil(stockPrice) + 1;
@@ -138,6 +193,10 @@ public class OrderTests {
 			return stock + "_" + date + "C" + round(callStrike);
 		}
 
+		public String getShortVerticalCallOption() {
+			return stock + "_" + date + "C" + round(callStrike + 5);
+		}
+
 		public String getLongCallOption() {
 			return stock + "_" + date + "C" + round(callLong);
 		}
@@ -146,16 +205,20 @@ public class OrderTests {
 			return stock + "_" + date + "P" + round(putStrike);
 		}
 
+		public String getShortVerticalPutOption() {
+			return stock + "_" + date + "P" + round(putStrike - 5);
+		}
+
 		public String getLongPutOption() {
 			return stock + "_" + date + "P" + round(putLong);
 		}
 
 		public double getLongCallOptionPrice() {
-			return callStrike - callLong;
+			return callStrike - callLong - stopLossForLongs;
 		}
 
 		public double getLongPutOptionPrice() {
-			return putLong - putStrike;
+			return putLong - putStrike - stopLossForLongs;
 		}
 
 		public double getLongCallStopLossPrice() {
@@ -201,7 +264,7 @@ public class OrderTests {
 
 				@Override
 				public SellOrder advanceSellOrderForUpwardDirection() {
-					return getAdvanceOptionSellCallPut().getSellOrderForPut();
+					return getBackwardOptionSellCallPut().getSellOrderForPut();
 				}
 
 				@Override
@@ -209,12 +272,28 @@ public class OrderTests {
 					return OptionSellCallPut.this.orderType;
 				}
 
+				@Override
+				public SellOrder oppositeSellOrder() {
+					return getSellOrderForCall();
+				}
+
+				@Override
+				public String getShortVertical() {
+					return getShortVerticalPutOption();
+				}
+
 			};
 		}
 
 		public OptionSellCallPut getAdvanceOptionSellCallPut() {
 			OptionSellCallPut oscp = new OptionSellCallPut(stock, date, callPremium, putPremium, callStrike + 1,
-					putStrike - 1, callLong + 1, putLong - 1, stopLossForLongs, OrderType.MARKET);
+					putStrike + 1, callLong + 1, putLong + 1, stopLossForLongs, OrderType.MARKET);
+			return oscp;
+		}
+
+		public OptionSellCallPut getBackwardOptionSellCallPut() {
+			OptionSellCallPut oscp = new OptionSellCallPut(stock, date, callPremium, putPremium, callStrike - 1,
+					putStrike - 1, callLong - 1, putLong - 1, stopLossForLongs, OrderType.MARKET);
 			return oscp;
 		}
 
@@ -261,6 +340,16 @@ public class OrderTests {
 					return OptionSellCallPut.this.orderType;
 				}
 
+				@Override
+				public SellOrder oppositeSellOrder() {
+					return getSellOrderForPut();
+				}
+
+				@Override
+				public String getShortVertical() {
+					return getShortVerticalCallOption();
+				}
+
 			};
 		}
 	}
@@ -273,6 +362,8 @@ public class OrderTests {
 
 	static interface SellOrder {
 		String getShortOption();
+
+		String getShortVertical();
 
 		String getLongOption();
 
@@ -287,6 +378,8 @@ public class OrderTests {
 		SellOrder advanceSellOrderForUpwardDirection();
 
 		OrderType getOpeningOrderType();
+
+		SellOrder oppositeSellOrder();
 	}
 
 	private static void testAdvancedSellOrders(String accountId, SellOrder sellOrder, int numberOfContracts,
@@ -300,29 +393,77 @@ public class OrderTests {
 
 	private static Order makeAdvancedSellOrder(SellOrder sellOrder, int numberOfContracts, int numberOfCycles) {
 		Duration d = Duration.DAY;
-		Order order = Util.makeOption(sellOrder.getShortOption(), numberOfContracts, d, sellOrder.getShortPremium(),
+		Order order = Util.makeOptionWithClosingOrderForSellCallOrPutWithVerticalProtection(sellOrder.getShortOption(),
+				sellOrder.getShortVertical(), numberOfContracts, d, sellOrder.getShortPremium(),
 				sellOrder.getPutOrCall(), sellOrder.getOpeningOrderType(), Instruction.SELL_TO_OPEN);
 		Order first = order;
-		first.setOrderStrategyType(OrderStrategyType.TRIGGER);
+		// first.setOrderStrategyType(OrderStrategyType.TRIGGER);
 		for (int i = 0; i < numberOfCycles; i++) {
 			OrderType stop = OrderType.STOP_LIMIT;
 			int longContracts = (i + 1) * numberOfContracts;
 			//// Calls
 			Order x = Util.makeOption(sellOrder.getLongOption(), longContracts, d, sellOrder.getLongPremium(),
 					sellOrder.getPutOrCall(), stop, Instruction.BUY_TO_OPEN);
-			x.setOrderStrategyType(OrderStrategyType.TRIGGER);
+			// x.setOrderStrategyType(OrderStrategyType.TRIGGER);
 			Order y = Util.makeOption(sellOrder.getLongOption(), longContracts, d, sellOrder.getLongStopLoss(),
 					sellOrder.getPutOrCall(), stop, Instruction.SELL_TO_CLOSE);
-			y.setOrderStrategyType(OrderStrategyType.TRIGGER);
-			Order z = Util.makeOption(sellOrder.getShortOption(), numberOfContracts, d, sellOrder.getShortPremium(),
+			// y.setOrderStrategyType(OrderStrategyType.TRIGGER);
+			Order z = Util.makeOptionWithClosingOrderForSellCallOrPutWithVerticalProtection(sellOrder.getShortOption(),
+					sellOrder.getShortVertical(), numberOfContracts, d, sellOrder.getShortPremium(),
 					sellOrder.getPutOrCall(), OrderType.MARKET, Instruction.SELL_TO_OPEN);
-			z.setOrderStrategyType(OrderStrategyType.TRIGGER);
+			// z.setOrderStrategyType(OrderStrategyType.TRIGGER);
 			first.getChildOrderStrategies().add(x);
 			Order xx = makeAdvancedSellOrder(sellOrder.advanceSellOrderForUpwardDirection(), numberOfContracts,
 					numberOfCycles - 1);
-			// x.getChildOrderStrategies().add(xx);
+			// Order xxx = makeAdvancedSellOrder(sellOrder.oppositeSellOrder(),
+			// numberOfContracts, numberOfCycles);
+			SellOrder opposite = sellOrder.oppositeSellOrder();
+			Order xxx = Util.makeOptionWithClosingOrderForSellCallOrPutWithVerticalProtection(opposite.getShortOption(),
+					opposite.getShortVertical(), numberOfContracts, d, opposite.getShortPremium(),
+					opposite.getPutOrCall(), OrderType.MARKET, Instruction.SELL_TO_OPEN);
+			x.getChildOrderStrategies().add(xx);
 			x.getChildOrderStrategies().add(y);
 			y.getChildOrderStrategies().add(z);
+			y.getChildOrderStrategies().add(xxx);
+			first = z;
+
+		}
+		return order;
+	}
+
+	private static Order makeAdvancedSellOrderOld(SellOrder sellOrder, int numberOfContracts, int numberOfCycles) {
+		Duration d = Duration.DAY;
+		Order order = Util.makeOptionWithClosingOrderForSellCallsOrPuts(sellOrder.getShortOption(), numberOfContracts,
+				d, sellOrder.getShortPremium(), sellOrder.getPutOrCall(), sellOrder.getOpeningOrderType(),
+				Instruction.SELL_TO_OPEN);
+		Order first = order;
+		// first.setOrderStrategyType(OrderStrategyType.TRIGGER);
+		for (int i = 0; i < numberOfCycles; i++) {
+			OrderType stop = OrderType.STOP_LIMIT;
+			int longContracts = (i + 1) * numberOfContracts;
+			//// Calls
+			Order x = Util.makeOption(sellOrder.getLongOption(), longContracts, d, sellOrder.getLongPremium(),
+					sellOrder.getPutOrCall(), stop, Instruction.BUY_TO_OPEN);
+			// x.setOrderStrategyType(OrderStrategyType.TRIGGER);
+			Order y = Util.makeOption(sellOrder.getLongOption(), longContracts, d, sellOrder.getLongStopLoss(),
+					sellOrder.getPutOrCall(), stop, Instruction.SELL_TO_CLOSE);
+			// y.setOrderStrategyType(OrderStrategyType.TRIGGER);
+			Order z = Util.makeOptionWithClosingOrderForSellCallsOrPuts(sellOrder.getShortOption(), numberOfContracts,
+					d, sellOrder.getShortPremium(), sellOrder.getPutOrCall(), OrderType.MARKET,
+					Instruction.SELL_TO_OPEN);
+			// z.setOrderStrategyType(OrderStrategyType.TRIGGER);
+			first.getChildOrderStrategies().add(x);
+			Order xx = makeAdvancedSellOrderOld(sellOrder.advanceSellOrderForUpwardDirection(), numberOfContracts,
+					numberOfCycles - 1);
+			// Order xxx = makeAdvancedSellOrder(sellOrder.oppositeSellOrder(),
+			// numberOfContracts, numberOfCycles);
+			SellOrder opposite = sellOrder.oppositeSellOrder();
+			Order xxx = Util.makeOptionWithClosingOrderForSellCallsOrPuts(opposite.getShortOption(), numberOfContracts,
+					d, opposite.getShortPremium(), opposite.getPutOrCall(), OrderType.MARKET, Instruction.SELL_TO_OPEN);
+			x.getChildOrderStrategies().add(xx);
+			x.getChildOrderStrategies().add(y);
+			y.getChildOrderStrategies().add(z);
+			y.getChildOrderStrategies().add(xxx);
 			first = z;
 
 		}

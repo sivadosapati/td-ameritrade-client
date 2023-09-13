@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -26,10 +27,8 @@ import com.studerw.tda.client.HttpTdaClient;
 import com.studerw.tda.model.account.ComplexOrderStrategyType;
 import com.studerw.tda.model.account.Duration;
 import com.studerw.tda.model.account.EquityInstrument;
-import com.studerw.tda.model.account.Instrument;
 import com.studerw.tda.model.account.Instrument.AssetType;
 import com.studerw.tda.model.account.OptionInstrument;
-import com.studerw.tda.model.account.OptionInstrument.PutCall;
 import com.studerw.tda.model.account.Order;
 import com.studerw.tda.model.account.OrderLegCollection;
 import com.studerw.tda.model.account.OrderLegCollection.Instruction;
@@ -147,7 +146,7 @@ public class Util {
 	public static String getAccountId1() {
 		return props.getProperty("account1.account.id");
 	}
-	
+
 	public static String getAccountId6() {
 		return props.getProperty("account6.account.id");
 	}
@@ -230,11 +229,14 @@ public class Util {
 		Order o = new Order();
 		o.setSession(Session.NORMAL);
 		o.setComplexOrderStrategyType(ComplexOrderStrategyType.NONE);
-		o.setOrderStrategyType(OrderStrategyType.SINGLE);
+		o.setOrderStrategyType(OrderStrategyType.TRIGGER);
 		o.setDuration(d);
 		o.setOrderType(type);
-		
+
 		BigDecimal bd = new BigDecimal(price);
+		bd = bd.setScale(2, RoundingMode.HALF_UP);
+		System.out.println(bd);
+
 		if (type == OrderType.STOP) {
 			o.setStopPrice(bd);
 		}
@@ -242,10 +244,10 @@ public class Util {
 			o.setStopPrice(bd);
 			o.setPrice(bd);
 		}
-		if( type == OrderType.LIMIT) {
+		if (type == OrderType.LIMIT) {
 			o.setPrice(bd);
 		}
-	
+
 		OrderLegCollection olc = new OrderLegCollection();
 		olc.setInstruction(i);
 		olc.setQuantity(new BigDecimal(quantity));
@@ -260,6 +262,58 @@ public class Util {
 
 		return o;
 
+	}
+
+	public static Order makeOptionWithClosingOrderForSellCallsOrPuts(String optionSymbol, int quantity, Duration d,
+			double doublePrice, OptionInstrument.PutCall pc, OrderType type, Instruction i) {
+		Order o = makeOption(optionSymbol, quantity, d, doublePrice, pc, type, i);
+		Order oo = makeOption(optionSymbol, quantity, d, 0.04d, pc, OrderType.LIMIT, Instruction.BUY_TO_CLOSE);
+		o.getChildOrderStrategies().add(oo);
+		return o;
+	}
+
+	public static Order makeOptionWithClosingOrderForSellCallOrPutWithVerticalProtectionOld(String optionSymbol,
+			String protectionOptionSymbol, int quantity, Duration d, double doublePrice, double protectionPrice,
+			OptionInstrument.PutCall pc, OrderType type, Instruction i) {
+		Order o = makeOption(optionSymbol, quantity, d, doublePrice, pc, type, i);
+		// o.setComplexOrderStrategyType(ComplexOrderStrategyType.VERTICAL);
+		// o.setOrderType(OrderType.NET_CREDIT);
+		i = reverseInstruction(i);
+		Order vertical = makeOption(protectionOptionSymbol, quantity, d, protectionPrice, pc, type, i);
+		o.getChildOrderStrategies().add(vertical);
+		return o;
+	}
+
+	public static Order makeOptionWithClosingOrderForSellCallOrPutWithVerticalProtection(String optionSymbol,
+			String protectionOptionSymbol, int quantity, Duration d, double doublePrice,
+			OptionInstrument.PutCall pc, OrderType type, Instruction i) {
+		Order o = makeOptionWithClosingOrderForSellCallsOrPuts(optionSymbol, quantity, d, doublePrice, pc, type, i);
+		// o.setComplexOrderStrategyType(ComplexOrderStrategyType.VERTICAL);
+		// o.setOrderType(OrderType.NET_CREDIT);
+		i = reverseInstruction(i);
+		Order vertical = makeOption(protectionOptionSymbol, quantity, d, doublePrice, pc, type, i);
+		Order newOrder = new Order();
+		newOrder.setSession(o.getSession());
+		newOrder.setOrderType(OrderType.NET_CREDIT);
+		newOrder.setPrice(o.getPrice());
+		newOrder.setDuration(d);
+		newOrder.setOrderStrategyType(o.getOrderStrategyType());
+		newOrder.getOrderLegCollection().addAll(o.getOrderLegCollection());
+		newOrder.getOrderLegCollection().addAll(vertical.getOrderLegCollection());
+		newOrder.getChildOrderStrategies().addAll(o.getChildOrderStrategies());
+		
+		return newOrder;
+		// return o;
+	}
+
+	private static Instruction reverseInstruction(Instruction i) {
+		if (i == Instruction.SELL_TO_OPEN) {
+			return Instruction.BUY_TO_OPEN;
+		}
+		if (i == Instruction.BUY_TO_OPEN) {
+			return Instruction.SELL_TO_OPEN;
+		}
+		throw new RuntimeException(i + " needs to be coded");
 	}
 
 	public static Order makeStockOrder(String stockTicker, BigDecimal price, int numberOfStocks,
