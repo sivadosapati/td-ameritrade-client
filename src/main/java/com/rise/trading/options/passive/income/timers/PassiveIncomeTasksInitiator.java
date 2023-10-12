@@ -19,31 +19,33 @@ public class PassiveIncomeTasksInitiator {
 
 		TimerTask tt = new TimerTask() {
 
+			final String accountId = Util.getAccountId6();
+
 			class Execution {
 				boolean open;
 				boolean close;
 			}
 
 			Map<String, Execution> executions = new HashMap<String, Execution>();
-			
+
 			private void dailySellCalls() {
-				OrderTests.dailySellCalls(Util.getAccountId1(), "QQQ", 2, 3, 0.25);
-				OrderTests.dailySellCalls(Util.getAccountId1(), "SPY", 1, 3, 0.25);
-				
+				// OrderTests.dailySellCalls(Util.getAccountId1(), "QQQ", 2, 3, 0.25);
+				OrderTests.dailySellCalls(accountId, "SPY", 1, 3, 0.25);
+
 			}
-			
+
 			private void dailySellPuts() {
-				OrderTests.dailySellPuts(Util.getAccountId1(), "QQQ", 2, 3, 0.25);
-				OrderTests.dailySellPuts(Util.getAccountId1(), "SPY", 1, 3, 0.25);
+				// OrderTests.dailySellPuts(Util.getAccountId1(), "QQQ", 2, 3, 0.25);
+				OrderTests.dailySellPuts(accountId, "SPY", 1, 3, 0.25);
 			}
-			
+
 			private void open() {
 				dailySellCalls();
 				dailySellPuts();
 			}
-			
+
 			private void close() {
-				
+
 			}
 
 			@Override
@@ -64,9 +66,9 @@ public class PassiveIncomeTasksInitiator {
 								System.out.println(day + " -> " + h + " -> " + m + " -> " + s);
 								Execution e = getExecution(d);
 								if (e.open == false) {
-									System.out.println("Executing opening orders -> " + getKey(d) + " -> " + day + " -> "
-											+ h + " -> " + m + " -> " + s);
-									//implementation.placeOrderAtMarketOpen(open);
+									System.out.println("Executing opening orders -> " + getKey(d) + " -> " + day
+											+ " -> " + h + " -> " + m + " -> " + s);
+									// implementation.placeOrderAtMarketOpen(open);
 									open();
 									e.open = true;
 									System.out.println("Done opening orders -> " + getKey(d) + " -> " + day + " -> " + h
@@ -86,7 +88,7 @@ public class PassiveIncomeTasksInitiator {
 
 								}
 							}
-							//System.out.println(day + " -> " + h + " -> " + m + " -> " + s);
+							// System.out.println(day + " -> " + h + " -> " + m + " -> " + s);
 						}
 					} catch (Exception e) {
 						e.printStackTrace();

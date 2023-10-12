@@ -1,14 +1,21 @@
 package com.rise.trading.options;
 
+import static com.rise.trading.options.Util.getAccountId1;
+import static com.rise.trading.options.Util.getHttpTDAClient;
+import static com.rise.trading.options.Util.makeOptionWithClosingOrderForSellCallOrPutWithVerticalProtection;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 import com.studerw.tda.client.HttpTdaClient;
 import com.studerw.tda.client.TdaClient;
 import com.studerw.tda.model.account.Duration;
+import com.studerw.tda.model.account.Instrument;
 import com.studerw.tda.model.account.OptionInstrument;
 import com.studerw.tda.model.account.OptionInstrument.PutCall;
 import com.studerw.tda.model.account.Order;
@@ -16,25 +23,37 @@ import com.studerw.tda.model.account.OrderLegCollection;
 import com.studerw.tda.model.account.OrderLegCollection.Instruction;
 import com.studerw.tda.model.account.OrderStrategyType;
 import com.studerw.tda.model.account.OrderType;
+import com.studerw.tda.model.account.Position;
 import com.studerw.tda.model.quote.EquityQuote;
 import com.studerw.tda.model.quote.EtfQuote;
 import com.studerw.tda.model.quote.Quote;
-import static com.rise.trading.options.Util.*;
 
 public class OrderTests {
 
 	private static void dailySellCalls() {
 		OrderTests.dailySellCalls(Util.getAccountId1(), "QQQ", 1, 3, 0.25);
-		//OrderTests.dailySellCalls(Util.getAccountId1(), "SPY", 1, 3, 0.25);
+		// OrderTests.dailySellCalls(Util.getAccountId1(), "SPY", 1, 3, 0.25);
 
 	}
 
 	private static void dailySellPuts() {
 		OrderTests.dailySellPuts(Util.getAccountId1(), "QQQ", 1, 3, 0.25);
-		//OrderTests.dailySellPuts(Util.getAccountId1(), "SPY", 1, 3, 0.25);
+		// OrderTests.dailySellPuts(Util.getAccountId1(), "SPY", 1, 3, 0.25);
+	}
+
+	public static void mainyyy(String args[]) throws Exception {
+
+		placeOrdersForOptionsExpiringToday(getAccountId1());
 	}
 
 	public static void main(String args[]) throws Exception {
+		String acct = Util.getAccountId6();
+		OptionSellCallPut oscp = makeOptionSellCallPutForMarket("SPY", "092723", 427.15, 1, OrderType.LIMIT);
+		testAdvancedSellOrders(acct, oscp.getSellOrderForCall(), 1, 1);
+		testAdvancedSellOrders(acct, oscp.getSellOrderForPut(), 1, 1);
+	}
+
+	public static void mainxxx(String args[]) throws Exception {
 		fetchOrders(Util.getAccountId1());
 		BigDecimal originalValue = new BigDecimal("0.010001232132675");
 
@@ -47,11 +66,47 @@ public class OrderTests {
 		// OrderTests.dailySellCalls(Util.getAccountId1(), "QQQ", 1, 3, 0.20);
 		// OrderTests.dailySellPuts(Util.getAccountId1(), "QQQ", 1, 3, 0.20);
 		OptionSellCallPut oscp = makeOptionSellCallPutForMarket("QQQ", "091223", 376.87, 0.2, OrderType.LIMIT);
-		//testAdvancedSellOrders(getAccountId1(), oscp.getSellOrderForCall(), 5, 3);
-		//testAdvancedSellOrders(getAccountId1(), oscp.getSellOrderForPut(), 5, 3);
+		// testAdvancedSellOrders(getAccountId1(), oscp.getSellOrderForCall(), 5, 3);
+		// testAdvancedSellOrders(getAccountId1(), oscp.getSellOrderForPut(), 5, 3);
 
 		dailySellCalls();
 		dailySellPuts();
+	}
+
+	static class OrderPlacements {
+		List<Order> newOrders = new ArrayList<Order>();
+		List<Order> replacableOrders = new ArrayList<Order>();
+	}
+
+	public static void placeOrdersForOptionsExpiringToday(String accountId) {
+		LocalDate ld = LocalDate.now().plusDays(1);
+		OrderPlacements op = findPotentialOrderPlacements(accountId, ld);
+	}
+
+	private static OrderPlacements findPotentialOrderPlacements(String accountId, LocalDate ld) {
+		OrderPlacements op = new OrderPlacements();
+		List<Order> orders = new OrderHandler().getCurrentWorkingOrders(accountId);
+		PositionsHandler ph = new PositionsHandler();
+		GroupedPositions gp = ph.getGroupedPositions(accountId);
+		List<Position> ps = ph.getOptionPositionsThatExpireOnThisDay(gp, ld);
+		for (Position p : ps) {
+			Instrument i = p.getInstrument();
+			if (i instanceof OptionInstrument) {
+				System.out.println(Util.toJSON(p));
+				int x = p.getShortQuantity().intValue();
+				if (x != 0) {
+					findPotentialProtectingWorkingOrderForShortPositionAndPlaceInOrderPlacements(p, orders);
+				}
+			}
+		}
+
+		return op;
+	}
+
+	private static void findPotentialProtectingWorkingOrderForShortPositionAndPlaceInOrderPlacements(Position p,
+			List<Order> orders) {
+		//
+
 	}
 
 	public static void mainxx(String[] args) throws Exception {
