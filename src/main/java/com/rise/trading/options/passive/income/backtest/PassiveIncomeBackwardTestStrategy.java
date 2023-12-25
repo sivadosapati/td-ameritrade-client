@@ -1,17 +1,13 @@
 package com.rise.trading.options.passive.income.backtest;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -293,6 +289,16 @@ public class PassiveIncomeBackwardTestStrategy {
 
 		HistoricalPricesForDay his = fetcher.getHistoricalPricesForDay(ticker, day);
 		return processDetailedTransactions(his);
+	}
+
+	// New method for chain transactions to progressively add puts and calls
+	public DetailedTransactionSummaryForDay identifyChainTransactions(String ticker, List<String> dates) {
+		HistoricalPricesForMultipleDays days = fetcher.getHistoricalPrices(ticker, dates);
+		for (HistoricalPricesForDay day : days.sortHistoricalPricesByDay()) {
+			new ChainedTransactions().processChainedTransactions(day);
+		}
+		System.out.println("Done processing all transactions");
+		return null;
 	}
 
 	public DetailedTransactionSummaryForDay processDetailedTransactions(HistoricalPricesForDay day) {
@@ -669,4 +675,247 @@ public class PassiveIncomeBackwardTestStrategy {
 
 		return ot;
 	}
+
+	class ChainedEntries {
+
+		Collection<OptionTransaction> sells = new ArrayList<OptionTransaction>();
+		Collection<OptionTransaction> buys = new ArrayList<OptionTransaction>();
+		Collection<OptionTransaction> protections = new ArrayList<OptionTransaction>();
+		Collection<PotentialTransaction> potentialProtections = new ArrayList<PotentialTransaction>();
+
+		Map<OptionTransaction, HistoricalPriceForMinute> closedSellTransactions = new LinkedHashMap<OptionTransaction, HistoricalPriceForMinute>();
+		Map<OptionTransaction, HistoricalPriceForMinute> closedProtectionTransactions = new LinkedHashMap<OptionTransaction, HistoricalPriceForMinute>();
+		Map<HistoricalPriceForMinute, Double> profitAndLoss = new LinkedHashMap<HistoricalPriceForMinute, Double>();
+
+		public void purchaseProtectionIfNeeded(HistoricalPriceForMinute minute) {
+			double stockPrice = minute.open;
+			int potentialOpenPositions = 0;
+			ArrayList<PotentialTransaction> remove = new ArrayList<PotentialTransaction>();
+			for (PotentialTransaction pt : potentialProtections) {
+				OptionTransaction ot = (OptionTransaction) pt.t;
+				if (stockPrice > ot.strikePrice + ot.potentialOptionValue) {
+					OptionTransaction x = new OptionTransaction();
+					x.type = OptionTransactionType.BUY_CALL;
+					x.strikePrice = ot.strikePrice;
+					x.potentialOptionValue = stockPrice - x.strikePrice + 0.10;
+					x.minute = minute;
+					protections.add(x);
+					adjustProfitAndLoss(minute, x);
+					remove.add(pt);
+					potentialOpenPositions++;
+
+				}
+			}
+			potentialProtections.removeAll(remove);
+			for (int i = 0; i < potentialOpenPositions; i++) {
+				this.openPositionIfNeeded(minute);
+			}
+		}
+
+		public void closeSellIfNeeded(HistoricalPriceForMinute minute) {
+			int potentialOpenPositions = 0;
+			ArrayList<OptionTransaction> remove = new ArrayList<OptionTransaction>();
+			for (OptionTransaction ot : sells) {
+				double stockPrice = minute.open;
+				double strikePrice = ot.strikePrice;
+				if (stockPrice < strikePrice - 3) {
+					remove.add(ot);
+					closedSellTransactions.put(ot, minute);
+					adjustClosingTransaction(ot, minute);
+					// this.openPositionIfNeeded(minute);
+					potentialOpenPositions++;
+				}
+			}
+			sells.removeAll(remove);
+			for (int i = 0; i < potentialOpenPositions; i++) {
+				this.openPositionIfNeeded(minute);
+			}
+
+		}
+
+		public void closeProtectionsIfNeeded(HistoricalPriceForMinute minute) {
+			ArrayList<OptionTransaction> remove = new ArrayList<OptionTransaction>();
+			for (OptionTransaction ot : protections) {
+				double stockPrice = minute.open;
+				double targetStockPrice = ot.strikePrice + ot.potentialOptionValue;
+				if (stockPrice > targetStockPrice + 1 || stockPrice < targetStockPrice - 0.5) {
+					closedProtectionTransactions.put(ot, minute);
+					adjustClosingTransaction(ot, minute);
+					remove.add(ot);
+					this.openPositionIfNeeded(minute);
+					PotentialTransaction pt = makePotentialTransaction(ot, minute);
+					potentialProtections.add(pt);
+				}
+			}
+			protections.removeAll(remove);
+
+		}
+
+		private void adjustClosingTransaction(OptionTransaction ot, HistoricalPriceForMinute minute) {
+			Double x = profitAndLoss.get(minute);
+			if (x == null) {
+				x = 0.0d;
+				profitAndLoss.put(minute, x);
+			}
+			double stockPrice = minute.open;
+			if (ot.type == OptionTransactionType.SELL_CALL) {
+				x = x - 0.4 * ot.potentialOptionValue;
+			}
+			if (ot.type == OptionTransactionType.BUY_CALL) {
+				x = x + stockPrice - ot.strikePrice;
+			}
+			profitAndLoss.put(minute, x);
+
+		}
+
+		private PotentialTransaction makePotentialTransaction(OptionTransaction ot, HistoricalPriceForMinute minute) {
+			PotentialTransaction pt = new PotentialTransaction();
+			pt.minute = minute;
+			OptionTransaction x = new OptionTransaction();
+			x.strikePrice = ot.strikePrice;
+			x.potentialOptionValue = minute.open - ot.strikePrice + 0.5;
+			pt.t = x;
+			return pt;
+		}
+
+		private void adjustProfitAndLoss(HistoricalPriceForMinute minute, OptionTransaction ot) {
+			Double entry = profitAndLoss.get(minute);
+			if (entry == null) {
+				entry = 0.0d;
+				profitAndLoss.put(minute, entry);
+			}
+			if (ot.type == OptionTransactionType.SELL_CALL) {
+				entry += ot.potentialOptionValue;
+			}
+			if (ot.type == OptionTransactionType.BUY_CALL) {
+				entry -= ot.potentialOptionValue;
+			}
+			profitAndLoss.put(minute, entry);
+		}
+
+		public void openPositionIfNeeded(HistoricalPriceForMinute minute) {
+			if(sells.size() > 25) {
+				return;
+			}
+
+			double stockPrice = minute.open;
+			double strikePrice = Math.ceil(stockPrice) + 1;
+			OptionTransaction sell = new OptionTransaction();
+			sell.potentialOptionValue = 0.002 * stockPrice;
+			sell.minute = minute;
+			sell.strikePrice = strikePrice;
+			sells.add(sell);
+			sell.type = OptionTransactionType.SELL_CALL;
+			adjustProfitAndLoss(minute, sell);
+
+			OptionTransaction buy = new OptionTransaction();
+			buy.potentialOptionValue = 0.1d;
+			buy.minute = minute;
+			buy.strikePrice = strikePrice + 5;
+			buys.add(buy);
+			buy.type = OptionTransactionType.BUY_CALL;
+			adjustProfitAndLoss(minute, buy);
+
+			OptionTransaction pp = new OptionTransaction();
+			pp.potentialOptionValue = 7;
+			pp.minute = minute;
+			pp.strikePrice = strikePrice - 7;
+			pp.type = OptionTransactionType.BUY_CALL;
+			PotentialTransaction ppt = new PotentialTransaction();
+			ppt.t = pp;
+			ppt.minute = minute;
+
+			potentialProtections.add(ppt);
+
+		}
+
+		public Double settleAllTransactions(HistoricalPriceForMinute minute) {
+			Double total = 0d;
+			double stockPrice = minute.close;
+			for (Double x : profitAndLoss.values()) {
+				total += x;
+			}
+			for (OptionTransaction ot : sells) {
+				double strike = ot.strikePrice;
+				if (stockPrice > strike) {
+					total = total - (stockPrice - strike);
+				}
+			}
+
+			for (OptionTransaction ot : buys) {
+				double strike = ot.strikePrice;
+				if (stockPrice > strike) {
+					total = total + (stockPrice - strike);
+				}
+			}
+
+			for (OptionTransaction ot : protections) {
+				double strike = ot.strikePrice;
+				if (stockPrice > strike) {
+					total = total + (stockPrice - strike);
+				}
+			}
+
+			System.out.println(minute.d + "," + total+","+sells.size()+","+buys.size()+","+protections.size()+","+closedSellTransactions.size()+","+closedProtectionTransactions.size());
+			return total;
+
+		}
+
+		public void displayProfitAndLoss(HistoricalPriceForMinute minute) {
+			Double x = profitAndLoss.get(minute);
+			if( x == null) {
+				x = 0.0d;
+			}
+			//System.out.println(minute.toString() + "," + x+","+this.sells.size()+","+protections.size()+","+closedSellTransactions.size()+","+closedProtectionTransactions.size());
+
+		}
+	}
+
+	class ChainedTransactions {
+		public Object processChainedTransactions(HistoricalPricesForDay day) {
+			if (day == null) {
+				return null;
+			}
+			Collection<HistoricalPriceForMinute> prices = day.getPricesForOnlyHoursWhereOptionsAreTraded();
+			ChainedEntries ce = new ChainedEntries();
+			if (prices.size() == 0)
+				return null;
+			HistoricalPriceForMinute end = null;
+			for (HistoricalPriceForMinute minute : prices) {
+
+				openPositionIfNeeded(ce, minute);
+				purchaseProtectionIfNeeded(ce, minute);
+				closeSellIfNeeded(ce, minute);
+				closeProtectionIfNeeded(ce, minute);
+				// closeBuyIfApplicable(ce, minute);
+				end = minute;
+				ce.displayProfitAndLoss(minute);
+
+			}
+			ce.settleAllTransactions(end);
+			return null;
+		}
+
+		private void openPositionIfNeeded(ChainedEntries ce, HistoricalPriceForMinute minute) {
+			if (ce.sells.size() == 0)
+				ce.openPositionIfNeeded(minute);
+
+		}
+
+		private void closeProtectionIfNeeded(ChainedEntries ce, HistoricalPriceForMinute minute) {
+			ce.closeProtectionsIfNeeded(minute);
+
+		}
+
+		private void closeSellIfNeeded(ChainedEntries ce, HistoricalPriceForMinute minute) {
+			ce.closeSellIfNeeded(minute);
+
+		}
+
+		private void purchaseProtectionIfNeeded(ChainedEntries ce, HistoricalPriceForMinute minute) {
+			ce.purchaseProtectionIfNeeded(minute);
+
+		}
+	}
+
 }

@@ -83,7 +83,7 @@ public class TDAScreen extends JFrame {
 
 	private void placeClosingTradesForOpenShortOptions() {
 		System.out.println("Placing All Closing Trades for Short Positions");
-		executeOnAccounts((e) -> {
+		executeOnAccount((e) -> {
 			orderHandler.placeClosingTradesOnShortOptions(e);
 		});
 		System.out.println("Executed All Closing Trades for Short Positions");
@@ -99,6 +99,15 @@ public class TDAScreen extends JFrame {
 	}
 
 	private void cancelAllOpenOrders() {
+
+		Account a = (Account) accounts.getModel().getSelectedItem();
+		String accountId = a.id;
+		executeOnAccount((e) -> {
+			orderHandler.cancelAllOpenOrders(e);
+		}, accountId);
+	}
+
+	private void cancelAllOpenOrdersOld() {
 		executeOnAccounts((e) -> {
 			orderHandler.cancelAllOpenOrders(e);
 		});
@@ -124,6 +133,16 @@ public class TDAScreen extends JFrame {
 		summaryArea.setText(bos.toString());
 		summaryArea.updateUI();
 
+	}
+
+	void executeOnAccount(AccountExecutor ae, String accountId) {
+		ae.execute(accountId);
+	}
+
+	void executeOnAccount(AccountExecutor ae) {
+		Account a = (Account) accounts.getModel().getSelectedItem();
+		String accountId = a.id;
+		executeOnAccount(ae, accountId);
 	}
 
 	interface AccountExecutor {
@@ -198,7 +217,7 @@ public class TDAScreen extends JFrame {
 		private JButton placeClosingOrdersForEquities;
 		private JButton placeCloseShortEquitiesWhenTheyAreInExpectedProfitOrLoss;
 		private JButton placeCloseLongEquitiesWhenTheyAreInExpectedProfitOrLoss;
-		
+
 		private JButton adjustEquityPrice;
 		private PassiveIncomeStrategy strategy;
 

@@ -240,7 +240,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 						o.setPrice(o.getStopPrice());
 						// getClient().cancelOrder(accountId, o.getOrderId()+"");
 						// o.setOrderId(null);
-						getClient().replaceOrder(accountId, o, o.getOrderId()+"");
+						getClient().replaceOrder(accountId, o, o.getOrderId() + "");
 						continue;
 					}
 				}
@@ -251,16 +251,16 @@ public class PassiveIncomeStrategy extends BaseHandler {
 						o.setPrice(new BigDecimal(o.getPrice().doubleValue() + priceAdjustment));
 						// getClient().cancelOrder(accountId, o.getOrderId()+"");
 						// o.setOrderId(null);
-						getClient().replaceOrder(accountId, o, o.getOrderId()+"");
+						getClient().replaceOrder(accountId, o, o.getOrderId() + "");
 						// getClient().
 						continue;
 					}
 				}
 				if (olc.getInstruction() == Instruction.BUY) {
-					if( o.getOrderType() == OrderType.STOP_LIMIT) {
+					if (o.getOrderType() == OrderType.STOP_LIMIT) {
 						o.setStopPrice(new BigDecimal(o.getStopPrice().doubleValue() - priceAdjustment));
 						o.setPrice(o.getStopPrice());
-						getClient().replaceOrder(accountId, o, o.getOrderId()+"");
+						getClient().replaceOrder(accountId, o, o.getOrderId() + "");
 						continue;
 					}
 				}
@@ -359,7 +359,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		BigDecimal callPrice = findCallPrice(price, callDistance);
 		Option callOption = getCallOption(chain, callPrice);
 		BigDecimal putPrice = findPutPrice(price, putDistance);
-		Option putOption = getPutOptionOption(chain, putPrice);
+		Option putOption = getPutOption(chain, putPrice);
 		System.out.println(callPrice + " : " + putPrice);
 		System.out.println(Util.toJSON(callOption));
 		System.out.println(Util.toJSON(putOption));
@@ -379,7 +379,8 @@ public class PassiveIncomeStrategy extends BaseHandler {
 	public void placeWeeklyTradeForPassiveIncome(String accountId, String stockTicker, float callDistance,
 			float putDistance, int numberOfContracts) {
 		LocalDateTime friday = getImmediateFriday();
-		placeOptionTradesForPassiveIncome(accountId, stockTicker, callDistance, putDistance, numberOfContracts, friday, friday);
+		placeOptionTradesForPassiveIncome(accountId, stockTicker, callDistance, putDistance, numberOfContracts, friday,
+				friday);
 	}
 
 	private LocalDateTime getImmediateFriday() {
@@ -388,25 +389,25 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		if (week == DayOfWeek.FRIDAY) {
 			return time;
 		}
-		if(week == DayOfWeek.THURSDAY) {
+		if (week == DayOfWeek.THURSDAY) {
 			return time.plusDays(1);
 		}
-		if(week == DayOfWeek.WEDNESDAY) {
+		if (week == DayOfWeek.WEDNESDAY) {
 			return time.plusDays(2);
 		}
-		if(week == DayOfWeek.TUESDAY) {
+		if (week == DayOfWeek.TUESDAY) {
 			return time.plusDays(3);
 		}
-		if(week == DayOfWeek.MONDAY) {
+		if (week == DayOfWeek.MONDAY) {
 			return time.plusDays(4);
 		}
-		if(week == DayOfWeek.SUNDAY) {
+		if (week == DayOfWeek.SUNDAY) {
 			return time.plusDays(5);
 		}
-		if(week == DayOfWeek.SATURDAY) {
+		if (week == DayOfWeek.SATURDAY) {
 			return time.plusDays(6);
 		}
-				
+
 		return time;
 	}
 
@@ -441,7 +442,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 				to);
 	}
 
-	public void placeOptionTradesForPassiveIncome(String accountId, String stockTicker, float callDistance,
+	public void placeOptionTradesForPassiveIncomeOld(String accountId, String stockTicker, float callDistance,
 			float putDistance, int numberOfContracts, LocalDateTime from, LocalDateTime to) {
 		HttpTdaClient client = getClient();
 		OptionChainReq request = makeOptionChainRequestForDailyTrade(stockTicker, from, to);
@@ -452,7 +453,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		BigDecimal callPrice = findCallPrice(price, callDistance);
 		Option callOption = getCallOption(chain, callPrice);
 		BigDecimal putPrice = findPutPrice(price, putDistance);
-		Option putOption = getPutOptionOption(chain, putPrice);
+		Option putOption = getPutOption(chain, putPrice);
 		System.out.println(callPrice + " : " + putPrice);
 		System.out.println(Util.toJSON(callOption));
 		System.out.println(Util.toJSON(putOption));
@@ -467,6 +468,109 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		client.placeOrder(accountId, putOrder);
 		placeShortStockOrderForPassiveIncome(accountId, stockTicker, putPrice, numberOfStocks);
 
+	}
+
+	public void placeOptionTradesForPassiveIncome(String accountId, String stockTicker, float callDistance,
+			float putDistance, int numberOfContracts, LocalDateTime from, LocalDateTime to) {
+		HttpTdaClient client = getClient();
+		OptionChainReq request = makeOptionChainRequestForDailyTrade(stockTicker, from, to);
+		// OptionChain chain = client.getOptionChain(stockTicker);
+		OptionChain chain = client.getOptionChain(request);
+		// System.out.println(Util.toJSON(chain));
+		BigDecimal price = chain.getUnderlyingPrice();
+		BigDecimal callPrice = findCallPrice(price, callDistance);
+		Option sellCallOption = getCallOption(chain, callPrice);
+		Option buyCallOption = getCallOption(chain, new BigDecimal(callPrice.intValue() + 1));
+		BigDecimal putPrice = findPutPrice(price, putDistance);
+		Option sellPutOption = getPutOption(chain, putPrice);
+		Option buyPutOption = getPutOption(chain, new BigDecimal(putPrice.intValue() - 1));
+		System.out.println(callPrice + " : " + putPrice);
+		System.out.println(Util.toJSON(sellCallOption));
+		System.out.println(Util.toJSON(sellPutOption));
+		Order callOrder = createSpreadSellOrder(sellCallOption, buyCallOption, numberOfContracts);
+		Order putOrder = createSpreadSellOrder(sellPutOption, buyPutOption, numberOfContracts);
+		System.out.println(Util.toJSON(callOrder));
+		System.out.println(Util.toJSON(putOrder));
+		client.placeOrder(accountId, callOrder);
+		client.placeOrder(accountId, putOrder);
+
+		// int numberOfStocks = numberOfContracts * 100;
+		// placeLongStockOrderForPassiveIncome(accountId, stockTicker, callPrice,
+		// numberOfStocks);
+		// client.placeOrder(accountId, putOrder);
+		// placeShortStockOrderForPassiveIncome(accountId, stockTicker, putPrice,
+		// numberOfStocks);
+
+	}
+
+	private Order createSpreadSellOrder(Option sellOption, Option buyOption, int numberOfContracts) {
+		BigDecimal contracts = new BigDecimal(numberOfContracts);
+		Order o = new Order();
+		o.setOrderType(OrderType.NET_CREDIT);
+		o.setSession(Session.NORMAL);
+		// o.setDuration(sellOption.get);
+		o.setDuration(Duration.GOOD_TILL_CANCEL);
+		//o.setOrderType(OrderType.LIMIT);
+		BigDecimal x = sellOption.getLastPrice().subtract(buyOption.getLastPrice());
+		o.setPrice(x);
+		o.setOrderStrategyType(OrderStrategyType.SINGLE);
+
+		List<OrderLegCollection> col = o.getOrderLegCollection();
+		col.add(makeOrderLegCollection(sellOption, Instruction.SELL_TO_OPEN, contracts));
+		col.add(makeOrderLegCollection(buyOption, Instruction.BUY_TO_OPEN, contracts));
+		return o;
+
+	}
+
+	private Order createSpreadSellOrderxxx(Option sellOption, Option buyOption, int numberOfContracts) {
+	//--------
+		
+		
+		if (sellOption == null)
+			return null;
+		BigDecimal quantity = new BigDecimal(numberOfContracts);
+		Order order = new Order();
+		order.setOrderType(OrderType.LIMIT);
+		order.setSession(Session.NORMAL);
+		order.setDuration(Duration.DAY);
+		// order.setQuantity(callQuantity);
+		order.setPrice(sellOption.getBidPrice());
+		order.setOrderStrategyType(OrderStrategyType.SINGLE);
+		// order.setComplexOrderStrategyType(ComplexOrderStrategyType.NONE);
+
+		OrderLegCollection olc = new OrderLegCollection();
+
+		olc.setInstruction(Instruction.SELL_TO_OPEN);
+		olc.setQuantity(quantity);
+		order.getOrderLegCollection().add(olc);
+
+		OptionInstrument instrument = new OptionInstrument();
+
+		instrument.setSymbol(sellOption.getSymbol());
+		instrument.setAssetType(AssetType.OPTION);
+		// instrument.setPutCall(OptionInstrument.));
+		if (sellOption.getPutCall() == Option.PutCall.PUT) {
+			instrument.setPutCall(OptionInstrument.PutCall.PUT);
+		} else {
+			instrument.setPutCall(OptionInstrument.PutCall.CALL);
+		}
+		// instrument.setUnderlyingSymbol(gp.symbol);
+		instrument.setOptionDeliverables(null);
+		olc.setInstrument(instrument);
+		// LOGGER.debug(order.toString());
+		return order;
+	}
+
+	private OrderLegCollection makeOrderLegCollection(Option option, Instruction i, BigDecimal contracts) {
+		OrderLegCollection olc = new OrderLegCollection();
+		olc.setInstruction(i);
+		olc.setQuantity(contracts);
+		OptionInstrument oi = new OptionInstrument();
+		oi.setSymbol(option.getSymbol());
+		oi.setAssetType(AssetType.OPTION);
+		oi.setOptionDeliverables(null);
+		olc.setInstrument(oi);
+		return olc;
 	}
 
 	private void placeShortStockOrderForPassiveIncome(String accountId, String stockTicker, BigDecimal stockPrice,
@@ -586,7 +690,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		return order;
 	}
 
-	private Option getPutOptionOption(OptionChain chain, BigDecimal bd) {
+	private Option getPutOption(OptionChain chain, BigDecimal bd) {
 		Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry = chain.getPutExpDateMap();
 		return findOption(bd, optionsMapForDifferentExpiry);
 	}

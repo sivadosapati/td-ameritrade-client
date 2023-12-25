@@ -1,17 +1,16 @@
 package com.rise.trading.options.passive.income.backtest;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Stack;
 
 import com.rise.trading.options.BaseObject;
 import com.rise.trading.options.ToJSONString;
-import com.rise.trading.options.Util;
 
 public class PotentialTransaction extends BaseObject implements ToJSONString {
 	public HistoricalPriceForMinute minute;
 	public Transaction t;
+	//private Date d;
 
 }
 
@@ -43,6 +42,8 @@ class OptionTransaction extends BaseObject implements Transaction {
 
 	Stack<StockEntry> stockEntriesForPut = new Stack<StockEntry>();
 	Collection<StockTransaction> potentialStockTransactionsForPut = new ArrayList<StockTransaction>();
+
+	public HistoricalPriceForMinute minute;
 
 	public StockEntry getPotentialStockEntryForCall() {
 		return stockEntriesForCall.peek();

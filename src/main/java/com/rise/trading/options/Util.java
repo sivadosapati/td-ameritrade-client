@@ -271,6 +271,11 @@ public class Util {
 		o.getChildOrderStrategies().add(oo);
 		return o;
 	}
+	
+	public static Order makeOptionForPassiveIncome(String ticker, int quantity) {
+		System.out.println("DO CODE ME SOON");
+		return null;
+	}
 
 	public static Order makeOptionWithClosingOrderForSellCallOrPutWithVerticalProtectionOld(String optionSymbol,
 			String protectionOptionSymbol, int quantity, Duration d, double doublePrice, double protectionPrice,

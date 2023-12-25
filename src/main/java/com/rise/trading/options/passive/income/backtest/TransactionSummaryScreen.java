@@ -40,6 +40,7 @@ public class TransactionSummaryScreen extends BaseFrame {
 	private JButton fetchTransactions, fetchWeeklyTransactions;
 	private JButton fetchTransactionsForDurationWeekly, fetchTransactionsForDuration;
 	private JButton fetchTransactionsForParticularDay;
+	private JButton chainedTransactions;
 
 	private JCheckBox buyLongAndShortEveryDay;
 
@@ -81,6 +82,7 @@ public class TransactionSummaryScreen extends BaseFrame {
 		panel.add(fetchTransactionsForDuration);
 		panel.add(fetchTransactionsForDurationWeekly);
 		panel.add(fetchTransactionsForParticularDay);
+		panel.add(chainedTransactions);
 		northPanel.add(panel);
 		Container con = getContentPane();
 		con.add(northPanel, "North");
@@ -184,10 +186,11 @@ public class TransactionSummaryScreen extends BaseFrame {
 	public void createComponents() {
 		ticker = new JTextField(10);
 		startDate = new JTextField(10);
-		startDate.setText("01-01-2023");
+		startDate.setText("15-03-2023");
 
 		endDate = new JTextField(10);
-		endDate.setText(getDate(0));
+		//endDate.setText(getDate(0));
+		endDate.setText("16-03-2023");
 		ticker.setText("SPY");
 		fetchTransactions = new JButton("Backtest");
 		fetchWeeklyTransactions = new JButton("Backtest weekly");
@@ -197,6 +200,7 @@ public class TransactionSummaryScreen extends BaseFrame {
 		fetchTransactionsForDuration = new JButton("Backtest for the duration");
 		fetchTransactionsForDurationWeekly = new JButton("Backtest for the duration (weekly)");
 		fetchTransactionsForParticularDay = new JButton("Fetch Transactions of particular day");
+		chainedTransactions = new JButton("Chain Transactions");
 
 		exportToExcel.addActionListener((e) -> export());
 		fetchTransactions.addActionListener((e) -> fetch());
@@ -204,6 +208,8 @@ public class TransactionSummaryScreen extends BaseFrame {
 		fetchTransactionsForDurationWeekly.addActionListener((e) -> fetchForDurationWeekly());
 		fetchTransactionsForDuration.addActionListener((e) -> fetchForDuration());
 		fetchTransactionsForParticularDay.addActionListener((e) -> fetchTransactionsForParticularDay());
+		
+		chainedTransactions.addActionListener( (e) -> chainTransactions());
 
 		model = new TransactionSummaryTableModel();
 		results = new JTable(model);
@@ -214,6 +220,19 @@ public class TransactionSummaryScreen extends BaseFrame {
 
 		component = new ObjectEditingComponent(new PassiveIncomeInput());
 
+	}
+
+	private void chainTransactions() {
+		String a = startDate.getText();
+		String b = endDate.getText();
+		List<String> dates = findDaysInBetween(a, b);
+		strategy.identifyChainTransactions(ticker.getText(),dates);
+		//boolean selection = buyLongAndShortEveryDay.isSelected();
+		//if (selection == true) {
+		//	fetchThroughFetcher((ticker) -> strategy.processBuyingLongAndShortEveryDayWhenApplicable(ticker, dates));
+		//} else {
+		//	fetchThroughFetcher((ticker) -> strategy.getTransactionSummaries(ticker, dates));
+		//}
 	}
 
 	private String getDate(int distanceFromToday) {

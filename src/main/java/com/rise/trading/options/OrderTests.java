@@ -46,7 +46,11 @@ public class OrderTests {
 		placeOrdersForOptionsExpiringToday(getAccountId1());
 	}
 
-	public static void main(String args[]) throws Exception {
+	
+	public static void main(String args[])throws Exception{
+		fetchOrders(Util.getAccountId6());
+	}
+	public static void mainaaaa(String args[]) throws Exception {
 		String acct = Util.getAccountId6();
 		OptionSellCallPut oscp = makeOptionSellCallPutForMarket("SPY", "092723", 427.15, 1, OrderType.LIMIT);
 		testAdvancedSellOrders(acct, oscp.getSellOrderForCall(), 1, 1);

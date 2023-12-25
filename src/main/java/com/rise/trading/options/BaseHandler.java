@@ -183,29 +183,23 @@ public class BaseHandler {
 		// order.setQuantity(callQuantity);
 		int longQuantity = position.getLongQuantity().intValue();
 		int shortQuantity = position.getShortQuantity().intValue();
-		if (longQuantity > 0) {
-			order.setPrice(new BigDecimal(closingPriceForLongPosition));
-		} else {
-			order.setPrice(new BigDecimal(closingPriceForShortPosition));
-		}
-
 		order.setOrderStrategyType(OrderStrategyType.SINGLE);
 		// order.setComplexOrderStrategyType(ComplexOrderStrategyType.NONE);
 
 		OrderLegCollection olc = new OrderLegCollection();
-
+		order.getOrderLegCollection().add(olc);
 		if (longQuantity > 0) {
+			order.setPrice(new BigDecimal(closingPriceForLongPosition));
 			// System.out.println("LONG " + longQuantity);
 			olc.setQuantity(new BigDecimal(longQuantity));
 			olc.setInstruction(Instruction.SELL_TO_CLOSE);
+
 		} else {
+			order.setPrice(new BigDecimal(closingPriceForShortPosition));
 			// System.out.println("SHORT " + shortQuantity);
 			olc.setQuantity(new BigDecimal(shortQuantity));
 			olc.setInstruction(Instruction.BUY_TO_CLOSE);
 		}
-
-		order.getOrderLegCollection().add(olc);
-
 		OptionInstrument instrument = new OptionInstrument();
 
 		instrument.setSymbol(oi.getSymbol());

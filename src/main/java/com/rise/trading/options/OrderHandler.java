@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.studerw.tda.client.HttpTdaClient;
 import com.studerw.tda.model.account.Duration;
 import com.studerw.tda.model.account.Instrument;
 import com.studerw.tda.model.account.Instrument.AssetType;
@@ -44,7 +45,7 @@ public class OrderHandler extends BaseHandler {
 			getClient().cancelOrder(accountId, order.getOrderId() + "");
 		}
 	}
-
+	
 
 	public OptionChain getOptionChain(String symbol, OptionChainReq.ContractType contractType, LocalDateTime toDate,
 			Range range) {
@@ -139,18 +140,20 @@ public class OrderHandler extends BaseHandler {
 		// throw CODE_ME;
 	}
 
-	private void createAndPlaceClosingOrder(Position p, String accountId) {
+	public void createAndPlaceClosingOrder(Position p, String accountId) {
 		String json = toJSON(p);
 		System.out.println(json);
+		if( p.getLongQuantity().intValue() > 0) {
+			return;
+		}
 		Order order = createClosingOrder(p);
 		getClient().placeOrder(accountId, order);
-
 	}
 
 
 	private Order createClosingOrder(Position position) {
 		double d = position.getAveragePrice().doubleValue();
-		return createClosingOrder(position, rnd(d * 1.5), rnd (d * 0.4) );
+		return createClosingOrder(position, rnd(d * 4), rnd (0.04d) );
 	}
 	
 	private Order createClosingOrderOld(Position position) {
