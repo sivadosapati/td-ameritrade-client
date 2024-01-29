@@ -49,6 +49,14 @@ public class Util {
 		return props.getProperty("eod.api.token");
 	}
 
+	public static void pauseForSeconds(int seconds) {
+		try {
+			Thread.sleep(seconds * 1000);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+
 	private static void playWithDates() throws Exception {
 		String ss = "6-11-2019";
 		DateTimeFormatter dtf = DateTimeFormatter.ofPattern("d-M-yyyy");
@@ -151,6 +159,10 @@ public class Util {
 		return props.getProperty("account6.account.id");
 	}
 
+	public static String getAccountId7() {
+		return props.getProperty("account7.account.id");
+	}
+
 	public static List<String> getSymbolsToBeSkipped(String accountId) {
 
 		if (accountId.equals(getAccountId1())) {
@@ -235,7 +247,7 @@ public class Util {
 
 		BigDecimal bd = new BigDecimal(price);
 		bd = bd.setScale(2, RoundingMode.HALF_UP);
-		System.out.println(bd);
+		//System.out.println(bd);
 
 		if (type == OrderType.STOP) {
 			o.setStopPrice(bd);
@@ -271,7 +283,7 @@ public class Util {
 		o.getChildOrderStrategies().add(oo);
 		return o;
 	}
-	
+
 	public static Order makeOptionForPassiveIncome(String ticker, int quantity) {
 		System.out.println("DO CODE ME SOON");
 		return null;
@@ -290,8 +302,8 @@ public class Util {
 	}
 
 	public static Order makeOptionWithClosingOrderForSellCallOrPutWithVerticalProtection(String optionSymbol,
-			String protectionOptionSymbol, int quantity, Duration d, double doublePrice,
-			OptionInstrument.PutCall pc, OrderType type, Instruction i) {
+			String protectionOptionSymbol, int quantity, Duration d, double doublePrice, OptionInstrument.PutCall pc,
+			OrderType type, Instruction i) {
 		Order o = makeOptionWithClosingOrderForSellCallsOrPuts(optionSymbol, quantity, d, doublePrice, pc, type, i);
 		// o.setComplexOrderStrategyType(ComplexOrderStrategyType.VERTICAL);
 		// o.setOrderType(OrderType.NET_CREDIT);
@@ -306,7 +318,7 @@ public class Util {
 		newOrder.getOrderLegCollection().addAll(o.getOrderLegCollection());
 		newOrder.getOrderLegCollection().addAll(vertical.getOrderLegCollection());
 		newOrder.getChildOrderStrategies().addAll(o.getChildOrderStrategies());
-		
+
 		return newOrder;
 		// return o;
 	}

@@ -28,7 +28,7 @@ import com.studerw.tda.model.quote.EquityQuote;
 import com.studerw.tda.model.quote.EtfQuote;
 import com.studerw.tda.model.quote.Quote;
 
-public class OrderTests {
+public class OrderTests extends BaseHandler {
 
 	private static void dailySellCalls() {
 		OrderTests.dailySellCalls(Util.getAccountId1(), "QQQ", 1, 3, 0.25);
@@ -46,10 +46,39 @@ public class OrderTests {
 		placeOrdersForOptionsExpiringToday(getAccountId1());
 	}
 
-	
-	public static void main(String args[])throws Exception{
-		fetchOrders(Util.getAccountId6());
+	public static void mainOld(String args[]) throws Exception {
+		String account = Util.getAccountId6();
+		Order x = Util.makeOption("UNG_122723P5", 1, Duration.GOOD_TILL_CANCEL, 0.02d, OptionInstrument.PutCall.PUT,
+				OrderType.LIMIT, Instruction.BUY_TO_OPEN);
+		Date d = getReleaseTime();
+		LocalDate ld = getCancelTime();
+		x.setCancelTime(ld);
+		x.setCancelable(true);
+		x.setEditable(true);
+		x.setReleaseTime(getReleaseTime());
+		getHttpTDAClient().placeOrder(account, x);
+
+		fetchOrders(account);
 	}
+
+	public static void main(String x[]) throws Exception {
+		String account = Util.getAccountId1();
+	
+		//oh.displayProfitOrLossForEachPosition(gp);
+		OrderTests ot = new OrderTests();
+		ot.placeProtectionOrdersForShortPositions(account);
+	}
+
+	private static Date getReleaseTime() {
+		Date d = new Date(123, 12, 26, 06, 30, 30);
+		return d;
+	}
+
+	private static LocalDate getCancelTime() {
+		LocalDate ld = LocalDate.of(2023, 12, 27);
+		return ld;
+	}
+
 	public static void mainaaaa(String args[]) throws Exception {
 		String acct = Util.getAccountId6();
 		OptionSellCallPut oscp = makeOptionSellCallPutForMarket("SPY", "092723", 427.15, 1, OrderType.LIMIT);

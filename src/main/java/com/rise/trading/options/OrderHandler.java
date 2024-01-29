@@ -66,6 +66,15 @@ public class OrderHandler extends BaseHandler {
 		}
 
 	}
+	
+	public void placeProtectionCallTradesOnShortOptions(String accountId) {
+		GroupedPositions gp = getGroupedPositions(accountId);
+		List<Order> orders = getCurrentWorkingOrders(accountId);
+		for (String symbol : gp.getSymbols()) {
+			GroupedPosition groupedPosition = gp.getGroupedPosition(symbol);
+			placeProtectionLongOptionForShortOptionIfNotExisting(groupedPosition, orders, accountId);
+		}	
+	}
 
 	public void workOnOptionsAndTheirCorrespondingClosingOrder(String accountId,
 			ProcessExistingClosingOrderForOption existing, ProcessNoClosingOrderForOption nonExisting) {
@@ -129,6 +138,35 @@ public class OrderHandler extends BaseHandler {
 				createAndPlaceClosingOrder(p, accountId);
 			} else {
 				optimizeExistingOrder(existingOrder, p, accountId);
+			}
+
+		}
+
+	}
+	
+	private void placeProtectionLongOptionForShortOptionIfNotExisting(GroupedPosition groupedPosition, List<Order> orders,
+			String accountId) {
+		List<Position> options = groupedPosition.getOptions();
+		if (options.size() == 0) {
+			return;
+		}
+		for (Position p : options) {
+			OptionInstrument oic = (OptionInstrument) p.getInstrument();
+			
+			// System.out.println(oic.getSymbol());
+			Order existingOrder = null;
+			for (Order o : orders) {
+				Instrument i = o.getOrderLegCollection().get(0).getInstrument();
+				// System.out.println("\t"+i.getSymbol());
+				if (oic.getSymbol().equals(i.getSymbol())) {
+					existingOrder = o;
+					break;
+				}
+			}
+			if (existingOrder == null) {
+				//createAndPlaceClosingOrder(p, accountId);
+			} else {
+				//optimizeExistingOrder(existingOrder, p, accountId);
 			}
 
 		}

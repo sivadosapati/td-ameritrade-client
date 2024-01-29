@@ -7,13 +7,15 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.TreeSet;
 
 import com.studerw.tda.client.HttpTdaClient;
 import com.studerw.tda.model.account.Duration;
-import com.studerw.tda.model.account.Instrument;
+import com.studerw.tda.model.account.Instrument.AssetType;
 import com.studerw.tda.model.account.OptionInstrument;
 import com.studerw.tda.model.account.Order;
 import com.studerw.tda.model.account.OrderLegCollection;
+import com.studerw.tda.model.account.OrderLegCollection.Instruction;
 import com.studerw.tda.model.account.OrderRequest;
 import com.studerw.tda.model.account.OrderStrategyType;
 import com.studerw.tda.model.account.OrderType;
@@ -21,8 +23,6 @@ import com.studerw.tda.model.account.Position;
 import com.studerw.tda.model.account.SecuritiesAccount;
 import com.studerw.tda.model.account.Session;
 import com.studerw.tda.model.account.Status;
-import com.studerw.tda.model.account.Instrument.AssetType;
-import com.studerw.tda.model.account.OrderLegCollection.Instruction;
 
 public class BaseHandler {
 
@@ -33,7 +33,7 @@ public class BaseHandler {
 	public String toJSON(Object o) {
 		return Util.toJSON(o);
 	}
-	
+
 	protected GroupedPosition getGroupedPosition(String accountId, String ticker) {
 		return getGroupedPositions(accountId).getGroupedPosition(ticker);
 	}
@@ -115,13 +115,13 @@ public class BaseHandler {
 		}
 		return returnableOrders;
 	}
-	
-	public List<Order> getFilledOrders(String accountId){
+
+	public List<Order> getFilledOrders(String accountId) {
 		OrderRequest request = new OrderRequest();
 		List<Order> orders = getClient().fetchOrders(accountId, request);
 		List<Order> returnableOrders = new ArrayList<Order>();
 		for (Order order : orders) {
-	
+
 			if (order.getStatus() == Status.FILLED) {
 				returnableOrders.add(order);
 			}
@@ -148,9 +148,9 @@ public class BaseHandler {
 	}
 
 	public List<Order> getWorkingOrderIfPresentForPosition(List<Order> workingOrders, Position p) {
-		//System.out.println(Util.toJSON(workingOrders));
+		// System.out.println(Util.toJSON(workingOrders));
 		List<Order> ro = new ArrayList<Order>();
-		//Instrument ip = p.getInstrument();
+		// Instrument ip = p.getInstrument();
 		for (Order o : workingOrders) {
 			OrderLegCollection olc = o.getOrderLegCollection().iterator().next();
 			if (olc.getInstrument().getSymbol().equals(p.getInstrument().getSymbol())) {
@@ -169,7 +169,125 @@ public class BaseHandler {
 		String x = os.substring(os.lastIndexOf(putOrCallChar) + 1);
 		return new BigDecimal(x);
 	}
+
+	protected void displayProfitOrLossForEachPosition(GroupedPositions gp) {
+		for (GroupedPosition x : gp.getGroupedPositions()) {
+			for (Position p : x.getOptions()) {
+				System.out.println(Util.toJSON(p));
+				System.out.println(p.getInstrument().getSymbol() + " -> " + p.getAveragePrice() + " -> "
+						+ p.getMarketValue().doubleValue());
+			}
+		}
+	}
+
+	protected void placeProtectionOrdersForShortPositions(String accountId) {
+		PositionsHandler ph = new PositionsHandler();
+		OrderHandler oh = new OrderHandler();
+
+		GroupedPositions gp = ph.getGroupedPositions(accountId);
+		List<Order> orders = oh.getCurrentWorkingOrders(accountId);
+		TreeSet<String> positions = new TreeSet<String>();
+		for (GroupedPosition x : gp.getGroupedPositions()) {
+			for (Position p : x.getOptions()) {
+				if (p.getShortQuantity().intValue() > 0) {
+					positions.add(p.getInstrument().getSymbol());
+				}
+				// System.out.println(Util.toJSON(p));
+				// System.out.println(p.getInstrument().getSymbol() + " -> " +
+				// p.getAveragePrice() + " -> "
+				// + p.getMarketValue().doubleValue());
+			}
+		}
+		System.out.println("----");
+		TreeSet<String> orderStrings = new TreeSet<String>();
+		for (Order order : orders) {
+			orderStrings.add(order.getOrderLegCollection().get(0).getInstrument().getSymbol());
+		}
+		List<Order> placeableOrders = new ArrayList<Order>();
+		for (GroupedPosition x : gp.getGroupedPositions()) {
+			for (Position p : x.getOptions()) {
+				if (p.getShortQuantity().intValue() > 0) {
+					// positions.add(p.getInstrument().getSymbol());
+					String symbol = p.getInstrument().getSymbol();
+					OptionData od = OptionSymbolParser.parse(symbol);
+					String h = od.getAdjacentHigherOption(1);
+					String l = od.getAdjacentLowerOption(1);
+					boolean he = orderStrings.contains(h);
+					boolean le = orderStrings.contains(l);
+					System.out.println(symbol + "[" + h + " = " + he + " , " + l + " = " + le + "]");
+					if (he == false) {
+						placeableOrders.add(makeProtectionOrder(h, p));
+					}
+					if (le == false) {
+						placeableOrders.add(makeProtectionOrder(l, p));
+					}
+					// System.out.println(x + "["+h+" = "+he+" , "+l+" = "+le+"]");
+				}
+				// System.out.println(Util.toJSON(p));
+				// System.out.println(p.getInstrument().getSymbol() + " -> " +
+				// p.getAveragePrice() + " -> "
+				// + p.getMarketValue().doubleValue());
+			}
+		}
+		for (Order o : placeableOrders) {
+			// System.out.println(Util.toJSON(o));
+			try {
+				getClient().placeOrder(accountId, o);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	private Order makeProtectionOrder(String symbol, Position currentPosition) {
+		OptionInstrument oi = (OptionInstrument) currentPosition.getInstrument();
+		Order order = Util.makeOption(symbol, currentPosition.getShortQuantity().intValue(), Duration.GOOD_TILL_CANCEL,
+				0.04d, oi.getPutCall(), OrderType.LIMIT, OrderLegCollection.Instruction.BUY_TO_OPEN);
+		return order;
+	}
 	
+	public void closeOptionPositionAtMarketPrice(String accountId, Position position) {
+		// BigDecimal callQuantity = new
+		// BigDecimal(gp.getNumberOfPotentialCoveredCallContracts());
+		
+		OptionInstrument oi = (OptionInstrument) position.getInstrument();
+		Order order = new Order();
+		order.setOrderType(OrderType.MARKET);
+		order.setSession(Session.NORMAL);
+		order.setDuration(Duration.GOOD_TILL_CANCEL);
+		// order.setQuantity(callQuantity);
+		int longQuantity = position.getLongQuantity().intValue();
+		int shortQuantity = position.getShortQuantity().intValue();
+		order.setOrderStrategyType(OrderStrategyType.SINGLE);
+		// order.setComplexOrderStrategyType(ComplexOrderStrategyType.NONE);
+
+		OrderLegCollection olc = new OrderLegCollection();
+		order.getOrderLegCollection().add(olc);
+		if (longQuantity > 0) {
+			//order.setPrice(new BigDecimal(closingPriceForLongPosition));
+			// System.out.println("LONG " + longQuantity);
+			olc.setQuantity(new BigDecimal(longQuantity));
+			olc.setInstruction(Instruction.SELL_TO_CLOSE);
+
+		} else {
+			//order.setPrice(new BigDecimal(closingPriceForShortPosition));
+			// System.out.println("SHORT " + shortQuantity);
+			olc.setQuantity(new BigDecimal(shortQuantity));
+			olc.setInstruction(Instruction.BUY_TO_CLOSE);
+		}
+		OptionInstrument instrument = new OptionInstrument();
+
+		instrument.setSymbol(oi.getSymbol());
+		instrument.setAssetType(AssetType.OPTION);
+		// instrument.setPutCall(PutCall.CALL);
+		// instrument.setUnderlyingSymbol(gp.symbol);
+		instrument.setOptionDeliverables(null);
+		olc.setInstrument(instrument);
+		// LOGGER.debug(order.toString());
+		System.out.println(Util.toJSON(order));
+		getClient().placeOrder(accountId, order);
+	
+	}
 
 	protected Order createClosingOrder(Position position, double closingPriceForLongPosition,
 			double closingPriceForShortPosition) {
