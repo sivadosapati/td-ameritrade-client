@@ -18,6 +18,7 @@ public class PassiveIncomeStrategyTest {
 class Scanner extends Thread {
 	PassiveIncomeStrategy pis = new PassiveIncomeStrategy();
 
+	
 	public void run() {
 		while (true) {
 
@@ -25,18 +26,19 @@ class Scanner extends Thread {
 				System.out.println("Not scanning -> " + new java.util.Date());
 			} else {
 				try {
-					System.out.println("\nCurrentTime -> " + new java.util.Date());
+					System.out.println("CurrentTime -> " + new java.util.Date());
 					pis.closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(Util.getAccountId1());
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
 			}
-			Util.pauseForSeconds(300);
+			Util.pauseForSeconds(60 * 5);
 		}
 	}
 
 	private boolean notMarketHours() {
 		LocalDate date = LocalDate.now();
+		
 		if (date.getDayOfWeek() == DayOfWeek.SATURDAY) {
 			return false;
 

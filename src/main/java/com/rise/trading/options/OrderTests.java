@@ -57,14 +57,36 @@ public class OrderTests extends BaseHandler {
 		x.setEditable(true);
 		x.setReleaseTime(getReleaseTime());
 		getHttpTDAClient().placeOrder(account, x);
-
+		
 		fetchOrders(account);
 	}
 
-	public static void main(String x[]) throws Exception {
+	public static void main(String args[]) {
+		String stock = "IWM";
+		Quote quote = Util.getHttpTDAClient().fetchQuote(stock);
+		double price = Util.getPrice(quote);
+		System.out.println(price);		
+	}
+	public static void main1234(String args[]) {
+		String stock = "IWM";
+		Quote quote = Util.getHttpTDAClient().fetchQuote(stock);
+		double price = Util.getPrice(quote);
+		System.out.println(price);
+		Order order = Util.makeOrderForBuyingStockAtLimitPrice(stock, price + 0.01d, 1);
+		//getHttpTDAClient().placeOrder(Util.getAccountId1(), order);
+		
+		//getHttpTDAClient().pla
+		
+		List<Order> orders = new OrderTests().getCurrentWorkingOrders(Util.getAccountId1());
+		for( Order o : orders) {
+			System.out.println(Util.toJSON(o));
+		}
+	}
+
+	public static void main123(String x[]) throws Exception {
 		String account = Util.getAccountId1();
-	
-		//oh.displayProfitOrLossForEachPosition(gp);
+
+		// oh.displayProfitOrLossForEachPosition(gp);
 		OrderTests ot = new OrderTests();
 		ot.placeProtectionOrdersForShortPositions(account);
 	}
@@ -152,8 +174,8 @@ public class OrderTests extends BaseHandler {
 		OptionSellCallPut oscp = new OptionSellCallPut("QQQ", "091223", 1, 1, 378, 376, 370, 384, 0.20,
 				OrderType.LIMIT);
 		String symbol = "QQQ";
-		Quote quote = Util.getHttpTDAClient().fetchQuote(symbol);
-		double price = getPrice(quote);
+
+		double price = Util.getLatestTickerPrice(symbol);
 		String date = getDate();
 		System.out.println(price + "->" + date);
 
@@ -190,7 +212,7 @@ public class OrderTests extends BaseHandler {
 	public static void dailySellCalls(String account, String stock, int numberOfContracts, int numberOfCycles,
 			double stopLoss) {
 		Quote quote = Util.getHttpTDAClient().fetchQuote(stock);
-		double price = getPrice(quote);
+		double price = Util.getPrice(quote);
 		String date = getDate();
 		OptionSellCallPut oscp = makeOptionSellCallPutForMarket(stock, date, price, stopLoss, OrderType.MARKET);
 		testAdvancedSellOrders(account, oscp.getSellOrderForCall(), numberOfContracts, numberOfCycles);
@@ -199,7 +221,7 @@ public class OrderTests extends BaseHandler {
 	public static void dailySellPuts(String account, String stock, int numberOfContracts, int numberOfCycles,
 			double stopLoss) {
 		Quote quote = Util.getHttpTDAClient().fetchQuote(stock);
-		double price = getPrice(quote);
+		double price = Util.getPrice(quote);
 		String date = getDate();
 		OptionSellCallPut oscp = makeOptionSellCallPutForMarket(stock, date, price, stopLoss, OrderType.MARKET);
 		testAdvancedSellOrders(account, oscp.getSellOrderForPut(), numberOfContracts, numberOfCycles);
@@ -212,19 +234,6 @@ public class OrderTests extends BaseHandler {
 		SimpleDateFormat sdf = new SimpleDateFormat("MMddYY");
 		// return "090723";
 		return sdf.format(d);
-	}
-
-	private static double getPrice(Quote quote) {
-		if (quote instanceof EtfQuote) {
-			EtfQuote x = (EtfQuote) quote;
-			return x.getBidPrice().doubleValue();
-		}
-		if (quote instanceof EquityQuote) {
-			EquityQuote x = (EquityQuote) quote;
-			return x.getBidPrice().doubleValue();
-		}
-		throw new RuntimeException("CODE ME");
-
 	}
 
 	private static OptionSellCallPut makeOptionSellCallPutForMarket(String stock, String date, double stockPrice,
@@ -614,7 +623,7 @@ public class OrderTests extends BaseHandler {
 	private static void testSellPutOrderForQQQ() throws Exception {
 		OptionInstrument.PutCall put = OptionInstrument.PutCall.PUT;
 		String acct = Util.getAccountId1();
-		Order option = Util.makeOption("QQQ_090523P376", 1, Duration.DAY, 1, put, OrderType.LIMIT,
+		Order option = Util.makeOption("QQQ_090523P376", 1, Duration.DAY, 1d, put, OrderType.LIMIT,
 				Instruction.SELL_TO_OPEN);
 		option.setOrderStrategyType(OrderStrategyType.TRIGGER);
 
@@ -628,7 +637,7 @@ public class OrderTests extends BaseHandler {
 		second.setOrderStrategyType(OrderStrategyType.TRIGGER);
 		first.getChildOrderStrategies().add(second);
 
-		Order second_call = Util.makeOption("QQQ_090523P376", 1, Duration.DAY, 1, put, OrderType.MARKET,
+		Order second_call = Util.makeOption("QQQ_090523P376", 1, Duration.DAY, 1d, put, OrderType.MARKET,
 				Instruction.SELL_TO_OPEN);
 		second.getChildOrderStrategies().add(second_call);
 
@@ -642,7 +651,7 @@ public class OrderTests extends BaseHandler {
 		fourth.setOrderStrategyType(OrderStrategyType.TRIGGER);
 		third.getChildOrderStrategies().add(fourth);
 
-		Order close_sell_calls = Util.makeOption("QQQ_090523P376", 2, Duration.DAY, 1, put, OrderType.MARKET,
+		Order close_sell_calls = Util.makeOption("QQQ_090523P376", 2, Duration.DAY, 1d, put, OrderType.MARKET,
 				Instruction.BUY_TO_CLOSE);
 		fourth.getChildOrderStrategies().add(close_sell_calls);
 
@@ -653,7 +662,7 @@ public class OrderTests extends BaseHandler {
 
 	private static void testSellCallOrderForQQQ() throws Exception {
 		String acct = Util.getAccountId1();
-		Order option = Util.makeOption("QQQ_090523C379", 1, Duration.DAY, 1, OptionInstrument.PutCall.CALL,
+		Order option = Util.makeOption("QQQ_090523C379", 1, Duration.DAY, 1d, OptionInstrument.PutCall.CALL,
 				OrderType.LIMIT, Instruction.SELL_TO_OPEN);
 		option.setOrderStrategyType(OrderStrategyType.TRIGGER);
 
@@ -667,7 +676,7 @@ public class OrderTests extends BaseHandler {
 		second.setOrderStrategyType(OrderStrategyType.TRIGGER);
 		first.getChildOrderStrategies().add(second);
 
-		Order second_call = Util.makeOption("QQQ_090523C379", 1, Duration.DAY, 1, OptionInstrument.PutCall.CALL,
+		Order second_call = Util.makeOption("QQQ_090523C379", 1, Duration.DAY, 1d, OptionInstrument.PutCall.CALL,
 				OrderType.MARKET, Instruction.SELL_TO_OPEN);
 		second.getChildOrderStrategies().add(second_call);
 
@@ -681,7 +690,7 @@ public class OrderTests extends BaseHandler {
 		fourth.setOrderStrategyType(OrderStrategyType.TRIGGER);
 		third.getChildOrderStrategies().add(fourth);
 
-		Order close_sell_calls = Util.makeOption("QQQ_090523C379", 2, Duration.DAY, 1, OptionInstrument.PutCall.CALL,
+		Order close_sell_calls = Util.makeOption("QQQ_090523C379", 2, Duration.DAY, 1d, OptionInstrument.PutCall.CALL,
 				OrderType.MARKET, Instruction.BUY_TO_CLOSE);
 		fourth.getChildOrderStrategies().add(close_sell_calls);
 

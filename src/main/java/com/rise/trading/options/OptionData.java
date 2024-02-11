@@ -14,6 +14,10 @@ public class OptionData {
 		this.putOrCall = putOrCall;
 		this.price = price;
 	}
+	
+	public void setPrice(double price) {
+		this.price = new BigDecimal(price);
+	}
 
 	public String getAdjacentHigherOption(double increment) {
 		return convert(price.doubleValue() + increment);

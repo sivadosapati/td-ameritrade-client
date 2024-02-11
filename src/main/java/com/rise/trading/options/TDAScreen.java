@@ -16,6 +16,7 @@ import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 
+import com.rise.trading.options.PassiveIncomeStrategy.Ticker;
 import com.rise.trading.options.passive.income.backtest.HistoricalPricesFetcher;
 import com.studerw.tda.client.HttpTdaClient;
 
@@ -278,7 +279,7 @@ public class TDAScreen extends JFrame {
 			int contracts = getInteger(numberOfContracts);
 			int call = getInteger(callDistance);
 			int put = getInteger(putDistance);
-			strategy.placeWeeklyTradeForPassiveIncome(accountId, stockCode, call, put, contracts);
+			strategy.placeWeeklyTradeForPassiveIncome(accountId, Ticker.make(stockCode), call, put, contracts);
 		}
 
 		private void adjustEquityPrices() {
@@ -293,7 +294,7 @@ public class TDAScreen extends JFrame {
 			int contracts = getInteger(numberOfContracts);
 			int call = getInteger(callDistance);
 			int put = getInteger(putDistance);
-			strategy.placeNextDayTradeForPassiveIncome(accountId, stockCode, call, put, contracts);
+			strategy.placeNextDayTradeForPassiveIncome(accountId, Ticker.make(stockCode), (float)call, (float)put, contracts);
 		}
 
 		private void placeClosingOrdersForOptions() {
@@ -328,7 +329,7 @@ public class TDAScreen extends JFrame {
 			int contracts = getInteger(numberOfContracts);
 			int call = getInteger(callDistance);
 			int put = getInteger(putDistance);
-			strategy.placeDailyTradeForPassiveIncome(accountId, stockCode, call, put, contracts);
+			strategy.placeDailyTradeForPassiveIncome(accountId, Ticker.make(stockCode), (float)call, (float)put, contracts);
 
 		}
 

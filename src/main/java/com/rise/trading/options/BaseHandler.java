@@ -5,9 +5,12 @@ import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.TreeSet;
+
+import org.joda.time.LocalDateTime;
 
 import com.studerw.tda.client.HttpTdaClient;
 import com.studerw.tda.model.account.Duration;
@@ -58,6 +61,18 @@ public class BaseHandler {
 		return list;
 	}
 
+	public boolean isOptionExpiringOnThisDay(String symbol, LocalDate day) {
+		LocalDate positionDayOfExpiry = parseDateForOptionSymbol(symbol);
+		if (positionDayOfExpiry.isEqual(day)) {
+			return true;
+		}
+		return false;
+	}
+
+	public boolean isOptionExpiringToday(String symbol) {
+		return isOptionExpiringOnThisDay(symbol, LocalDate.now());
+	}
+
 	protected List<Position> getOptionPositionsThatExpireOnThisDay(GroupedPosition gp, LocalDate day) {
 
 		List<Position> matched = new ArrayList<Position>();
@@ -66,8 +81,8 @@ public class BaseHandler {
 		List<Position> position = gp.getOptions();
 		for (Position p : position) {
 			String symbol = p.getInstrument().getSymbol();
-			LocalDate positionDayOfExpiry = parseDateForOptionSymbol(symbol);
-			if (positionDayOfExpiry.isEqual(day)) {
+			boolean b = isOptionExpiringOnThisDay(symbol, day);
+			if (b) {
 				matched.add(p);
 			}
 		}
@@ -245,11 +260,36 @@ public class BaseHandler {
 				0.04d, oi.getPutCall(), OrderType.LIMIT, OrderLegCollection.Instruction.BUY_TO_OPEN);
 		return order;
 	}
-	
+
+	List<String> tickersThatTradeAfterHoursForOptions = Arrays.asList("QQQ", "SPY", "IWM");
+
+	protected boolean isLastFewMinutesOfMarketHours(String ticker) {
+		LocalDateTime ldt = LocalDateTime.now();
+		int hour = ldt.getHourOfDay();
+		//if (hour < 12 || hour > 13) {
+		//	return false;
+		//}
+		int min = ldt.getMinuteOfHour();
+
+		if (tickersThatTradeAfterHoursForOptions.contains(ticker)) {
+			if( hour == 13 && min > 10) {
+				return true;
+			}
+			return false;
+		}
+		else {
+			if( hour == 12 && min > 45) {
+				return true;
+			}
+			return false;
+		}
+
+	}
+
 	public void closeOptionPositionAtMarketPrice(String accountId, Position position) {
 		// BigDecimal callQuantity = new
 		// BigDecimal(gp.getNumberOfPotentialCoveredCallContracts());
-		
+
 		OptionInstrument oi = (OptionInstrument) position.getInstrument();
 		Order order = new Order();
 		order.setOrderType(OrderType.MARKET);
@@ -264,13 +304,13 @@ public class BaseHandler {
 		OrderLegCollection olc = new OrderLegCollection();
 		order.getOrderLegCollection().add(olc);
 		if (longQuantity > 0) {
-			//order.setPrice(new BigDecimal(closingPriceForLongPosition));
+			// order.setPrice(new BigDecimal(closingPriceForLongPosition));
 			// System.out.println("LONG " + longQuantity);
 			olc.setQuantity(new BigDecimal(longQuantity));
 			olc.setInstruction(Instruction.SELL_TO_CLOSE);
 
 		} else {
-			//order.setPrice(new BigDecimal(closingPriceForShortPosition));
+			// order.setPrice(new BigDecimal(closingPriceForShortPosition));
 			// System.out.println("SHORT " + shortQuantity);
 			olc.setQuantity(new BigDecimal(shortQuantity));
 			olc.setInstruction(Instruction.BUY_TO_CLOSE);
@@ -286,7 +326,7 @@ public class BaseHandler {
 		// LOGGER.debug(order.toString());
 		System.out.println(Util.toJSON(order));
 		getClient().placeOrder(accountId, order);
-	
+
 	}
 
 	protected Order createClosingOrder(Position position, double closingPriceForLongPosition,

@@ -11,14 +11,19 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Properties;
 import java.util.TimeZone;
 
@@ -34,12 +39,20 @@ import com.studerw.tda.model.account.OrderLegCollection;
 import com.studerw.tda.model.account.OrderLegCollection.Instruction;
 import com.studerw.tda.model.account.OrderStrategyType;
 import com.studerw.tda.model.account.OrderType;
+import com.studerw.tda.model.account.Position;
 import com.studerw.tda.model.account.Session;
+import com.studerw.tda.model.account.Instrument;
+import com.studerw.tda.model.quote.EquityQuote;
+import com.studerw.tda.model.quote.EtfQuote;
+import com.studerw.tda.model.quote.Quote;
 
 public class Util {
 
+	public static int HOURS_TO_ADJUST_FOR_PST = 0;
+
 	private static Properties props = fetchProperties();
 	private static Accounts accounts = fetchAccounts();
+	private static HttpTdaClient httpTDAClient = null;
 
 	public static void main(String args[]) throws Exception {
 		playWithDates();
@@ -47,6 +60,34 @@ public class Util {
 
 	public static String getEODToken() {
 		return props.getProperty("eod.api.token");
+	}
+
+	public static double getLatestTickerPrice(String symbol) {
+		return getPrice(getHttpTDAClient().fetchQuote(symbol));
+	}
+
+	public static Map<String, Double> getLatestTickerPrices(Collection<String> symbols) {
+		Map<String, Double> map = new HashMap<String, Double>();
+		List<Quote> quotes = getHttpTDAClient().fetchQuotes(new ArrayList<String>(symbols));
+		for (Quote q : quotes) {
+			map.put(q.getSymbol(), getPrice(q));
+		}
+		return map;
+	}
+
+	public static double getPrice(Quote quote) {
+
+		if (quote instanceof EtfQuote) {
+			EtfQuote x = (EtfQuote) quote;
+			return x.getBidPrice().doubleValue();
+		}
+		if (quote instanceof EquityQuote) {
+			EquityQuote x = (EquityQuote) quote;
+			return x.getBidPrice().doubleValue();
+		}
+		System.out.println(quote.getClass().getName() + toJSON(quote));
+		throw new RuntimeException("CODE ME");
+
 	}
 
 	public static void pauseForSeconds(int seconds) {
@@ -143,8 +184,12 @@ public class Util {
 
 	public static HttpTdaClient getHttpTDAClient() {
 		try {
-			HttpTdaClient httpTdaClient = new HttpTdaClient(props);
-			return httpTdaClient;
+			if (httpTDAClient != null) {
+				return httpTDAClient;
+			}
+			httpTDAClient = new HttpTdaClient(props);
+			// System.out.println(Util.toJSON(httpTDAClient));
+			return httpTDAClient;
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new RuntimeException(e);
@@ -215,6 +260,31 @@ public class Util {
 		return accounts;
 	}
 
+	public static Order makeOrderForBuyingStockAtLimitPrice(String stockSymbol, double price, double quantity) {
+
+		Order order = new Order();
+		order.setOrderType(OrderType.LIMIT);
+		// order.setSession(Session.NORMAL);
+		order.setSession(Session.SEAMLESS);
+		order.setDuration(Duration.GOOD_TILL_CANCEL);
+		order.setOrderStrategyType(OrderStrategyType.SINGLE);
+		order.setPrice(new BigDecimal(price));
+
+		OrderLegCollection olc = new OrderLegCollection();
+
+		olc.setInstruction(Instruction.BUY);
+		olc.setQuantity(new BigDecimal(quantity));
+
+		order.getOrderLegCollection().add(olc);
+
+		Instrument instrument = new EquityInstrument();
+		instrument.setSymbol(stockSymbol);
+		olc.setInstrument(instrument);
+
+		return order;
+
+	}
+
 	public static Order makeSellOptionOrder(String optionSymbol, int quantity) {
 		Order o = new Order();
 		o.setSession(Session.NORMAL);
@@ -236,7 +306,7 @@ public class Util {
 		return o;
 	}
 
-	public static Order makeOption(String optionSymbol, int quantity, Duration d, double price,
+	public static Order makeOption(String optionSymbol, int quantity, Duration d, Double price,
 			OptionInstrument.PutCall pc, OrderType type, Instruction i) {
 		Order o = new Order();
 		o.setSession(Session.NORMAL);
@@ -245,9 +315,13 @@ public class Util {
 		o.setDuration(d);
 		o.setOrderType(type);
 
-		BigDecimal bd = new BigDecimal(price);
-		bd = bd.setScale(2, RoundingMode.HALF_UP);
-		//System.out.println(bd);
+		BigDecimal bd = null;
+		if (price != null) {
+			bd = new BigDecimal(price);
+			bd = bd.setScale(2, RoundingMode.HALF_UP);
+		}
+
+		// System.out.println(bd);
 
 		if (type == OrderType.STOP) {
 			o.setStopPrice(bd);
@@ -274,6 +348,43 @@ public class Util {
 
 		return o;
 
+	}
+	
+	public static boolean notMarketHours() {
+		LocalDate date = LocalDate.now();
+		if (date.getDayOfWeek() == DayOfWeek.SATURDAY) {
+			return false;
+
+		}
+		if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
+			return false;
+		}
+		LocalTime time = LocalTime.now();
+
+		// System.out.println(time.getHour());
+		// After 12 PM - pick the next day
+		if (time.getHour() > 14) {
+			return false;
+		}
+		if (time.getHour() < 6) {
+			return false;
+		}
+		if (time.getHour() == 6) {
+			if (time.getMinute() >= 30) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+		if (time.getHour() == 13) {
+			if (time.getMinute() < 15) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	public static Order makeOptionWithClosingOrderForSellCallsOrPuts(String optionSymbol, int quantity, Duration d,
@@ -360,6 +471,16 @@ public class Util {
 		olc.setInstrument(instrument);
 		// LOGGER.debug(order.toString());
 		return order;
+
+	}
+
+	public static String getTickerSymbol(Position p) {
+		Instrument i = p.getInstrument();
+		if (i instanceof OptionInstrument) {
+			OptionInstrument oi = (OptionInstrument) i;
+			return oi.getUnderlyingSymbol();
+		}
+		throw new RuntimeException("CODE ME");
 
 	}
 }
