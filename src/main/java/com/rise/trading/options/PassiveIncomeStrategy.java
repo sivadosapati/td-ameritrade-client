@@ -2,15 +2,22 @@ package com.rise.trading.options;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.Month;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+
+import org.joda.time.Days;
 
 import com.studerw.tda.client.HttpTdaClient;
 import com.studerw.tda.model.account.Duration;
@@ -32,6 +39,9 @@ import com.studerw.tda.model.option.OptionChainReq.Range;
 import com.studerw.tda.model.quote.Quote;
 
 public class PassiveIncomeStrategy extends BaseHandler {
+
+	public static int MAX_NUMBER_OF_SELL_POSITIONS = 10;
+
 	public static void main(String args[]) {
 		final PassiveIncomeStrategy pis = new PassiveIncomeStrategy();
 		// pis.placeClosingTradesForOptionsOnDailyExpiringOptions(Util.getAccountId4(),"QQQ");
@@ -52,30 +62,14 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		// new Scanner().start();
 
 		pis.closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(Util.getAccountId1());
+		// pis.closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(Util.getAccountId6());
+		// pis.closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(Util.getAccountId7());
+
 		System.out.println(pis.getNextWeekFriday());
 	}
 
-	static class Scanner extends Thread {
-		PassiveIncomeStrategy pis = new PassiveIncomeStrategy();
-
-		public void run() {
-			while (true) {
-
-				if (!Util.notMarketHours()) {
-					System.out.println("Not scanning -> " + new java.util.Date());
-				} else {
-					try {
-						System.out.println("\nCurrentTime -> " + new java.util.Date());
-						pis.closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(Util.getAccountId1());
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-				}
-				Util.pauseForSeconds(300);
-			}
-		}
-
-		
+	public int getMaximumSellPositions(String ticker) {
+		return MAX_NUMBER_OF_SELL_POSITIONS;
 	}
 
 	public void closeSellOptionsThatAreInProfit(String accountId, String ticker, double gainPercentage) {
@@ -244,19 +238,58 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		placeClosingTradesForOptionsOnDailyExpiringOptons(accountId, position);
 	}
 
+	class OptionPositions {
+		List<OptionData> options = new ArrayList<OptionData>();
+
+		public void addOptionPosition(Position p) {
+			OptionData od = OptionSymbolParser.parse(p);
+			// System.out.println(od + " -> "+od.getQuantity());
+			options.add(od);
+		}
+
+		public List<OptionData> compute() {
+			List<OptionData> data = new ArrayList<OptionData>();
+			Map<String, Integer> optionData = new HashMap<String, Integer>();
+			for (OptionData x : options) {
+				String key = x.stockTicker + "_" + x.date + x.putOrCall;
+				Integer i = optionData.get(key);
+				if (i == null) {
+					i = 0;
+				}
+				i += x.quantity;
+				optionData.put(key, i);
+
+			}
+			// System.out.println(optionData);
+			for (String k : optionData.keySet()) {
+				Integer y = optionData.get(k);
+				if (y < 0) {
+					OptionData od = OptionSymbolParser.parse(k + "01");
+					od.setQuantity(y);
+					data.add(od);
+					System.out.println(od);
+				}
+			}
+			return data;
+		}
+	}
+
 	public void closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(String accountId) {
 		GroupedPositions gps = getGroupedPositions(accountId);
 		LocalDate ld = getTheImmediateBusinessDay().toLocalDate();
 		Set<String> symbols = new HashSet<String>();
+		OptionPositions op = new OptionPositions();
 		for (GroupedPosition gp : gps.getGroupedPositions()) {
 			List<Position> o = gp.getOptions();
 			for (Position p : o) {
 				symbols.add(Util.getTickerSymbol(p));
+				op.addOptionPosition(p);
 			}
-
 		}
+		// System.out.println(op.compute());
+		op.compute();
 		Map<String, Double> prices = Util.getLatestTickerPrices(symbols);
-		System.out.println("Prices -> " + prices);
+		System.out.println("Account Id : -> " + accountId + " : Prices -> " + prices);
 		for (GroupedPosition gp : gps.getGroupedPositions()) {
 			List<Position> o = gp.getOptions();
 			// List<Position> o = getOptionPositionsThatExpireOnThisDay(gp, ld);
@@ -270,6 +303,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 	private double potentialProfitForOptionPosition(Position p) {
 		double potentialProfitMarketValue = 0;
 		OptionInstrument oi = (OptionInstrument) p.getInstrument();
+		// String symbol = oi.getSymbol();
 		// OptionInstrument.PutCall pc = oi.getPutCall();
 		String ticker = oi.getUnderlyingSymbol();
 		// System.out.println(Util.toJSON(p));
@@ -280,7 +314,9 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		// boolean profitable = false;
 		// PossibleOptionAndProfit pop = null;
 		if (shortQuantity > 0 /* && oi.getPutCall() == OptionInstrument.PutCall.PUT */) {
-			potentialProfitMarketValue = -1 * shortQuantity * 0.04d * 100;
+			potentialProfitMarketValue = -1 * shortQuantity * 0.05d * 100;
+			// potentialProfitMarketValue = -1 * shortQuantity *
+			// p.getAveragePrice().doubleValue() * 0.1 * 100;
 			// pop = isOptionInProfit(marketValue, potentialProfitMarketValue, oi,
 			// currentStockPrice);
 		}
@@ -294,7 +330,9 @@ public class PassiveIncomeStrategy extends BaseHandler {
 
 	private void closeOptionIfInProfitAndPotentiallyOpenNewOne(Position p, String accountId, double currentStockPrice) {
 		OptionInstrument oi = (OptionInstrument) p.getInstrument();
-		// OptionInstrument.PutCall pc = oi.getPutCall();
+
+		OptionInstrument.PutCall pc = oi.getPutCall();
+		// System.out.println(oi.getSymbol() + " -> ");
 		String ticker = oi.getUnderlyingSymbol();
 		Ticker tick = Ticker.make(ticker);
 		// System.out.println(Util.toJSON(p));
@@ -319,14 +357,17 @@ public class PassiveIncomeStrategy extends BaseHandler {
 			}
 			closeSellOptionAndOpenNewOne(accountId, p, tick);
 			return;
+
 		}
-		if (isLastFewMinutesOfMarketHours(ticker)) {
+		if (Util.isLastFewMinutesOfMarketHours(ticker)) {
 			if (isOptionExpiringToday(oi.getSymbol())) {
 				System.out.println("Last minutes of trading and acting on -> " + oi.getSymbol());
 				Ticker x = createTicker(ticker, currentStockPrice, pop.getOptionPrice());
 				closeSellOptionAndOpenNewOne(accountId, p, x);
+
 			}
 		}
+
 	}
 
 	private Ticker createTicker(String stock, double currentStockPrice, BigDecimal optionPrice) {
@@ -334,49 +375,55 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		double x = optionPrice.doubleValue() - currentStockPrice;
 		if (x > 0) {
 			t.setOptionSpreadDistance((int) (x + 1));
-		}
-		else {
+		} else {
 			t.setOptionSpreadDistance((int) (-x + 1));
 		}
 
 		return t;
 	}
 
-	private boolean isLastHourOfTrading() {
-		LocalDateTime ldt = LocalDateTime.now();
-		if (ldt.getHour() >= 12 && ldt.getHour() < 13) {
-			return true;
-		}
-		return false;
-	}
-
 	private void closeSellOptionAndOpenNewOne(String accountId, Position p, Ticker ticker) {
 		System.out.println("Closing option and opening a new one -> " + Util.toJSON(p));
 		closeOptionPositionAtMarketPrice(accountId, p);
+		openNewOptionPositionForSellCallOrPut(accountId, p, ticker);
+
+	}
+
+	private void openNewOptionPositionForSellCallOrPut(String accountId, Position p, Ticker ticker) {
 		OptionInstrument oi = (OptionInstrument) p.getInstrument();
 		int shortQuantity = p.getShortQuantity().intValue();
-		int tradeShortQuantity = shortQuantity;
 		if (shortQuantity > 0) {
-			if (oi.getPutCall() == OptionInstrument.PutCall.CALL) {
-				if (isLastHourOfTrading()) {
-					System.out.println("Opening a new sell call for Next Day -> " + Util.toJSON(p));
-					placeNextDayTradeForPassiveIncome(accountId, ticker, 0f, null, tradeShortQuantity);
+			openNewOptionPositionForSellCallOrPut(accountId, ticker, shortQuantity, oi.getPutCall());
+		}
+	}
 
-				} else {
-					System.out.println("Opening a new sell call for Current Day -> " + Util.toJSON(p));
-					placeDailyTradeForPassiveIncome(accountId, ticker, 1f, null, tradeShortQuantity);
-				}
-			}
-			if (oi.getPutCall() == OptionInstrument.PutCall.PUT) {
-				if (isLastHourOfTrading()) {
-					System.out.println("Opening a new sell put for Next Day -> " + Util.toJSON(p));
-					placeNextDayTradeForPassiveIncome(accountId, ticker, null, 0f, tradeShortQuantity);
-				} else {
-					System.out.println("Opening a new sell put for Current Day -> " + Util.toJSON(p));
-					placeDailyTradeForPassiveIncome(accountId, ticker, null, 1f, tradeShortQuantity);
-				}
+	private void openNewOptionPositionForSellCallOrPut(String accountId, Ticker ticker, int shortQuantity,
+			OptionInstrument.PutCall opc) {
+
+		if (opc == OptionInstrument.PutCall.CALL) {
+			if (Util.isLastHourOfTrading()) {
+				// System.out.println("Opening a new sell call for Next Day -> " +
+				// Util.toJSON(p));
+				placeNextDayTradeForPassiveIncome(accountId, ticker, 0f, null, shortQuantity);
+
+			} else {
+				// System.out.println("Opening a new sell call for Current Day -> " +
+				// Util.toJSON(p));
+				placeDailyTradeForPassiveIncome(accountId, ticker, 1f, null, shortQuantity);
 			}
 		}
+		if (opc == OptionInstrument.PutCall.PUT) {
+			if (Util.isLastHourOfTrading()) {
+				// System.out.println("Opening a new sell put for Next Day -> " +
+				// Util.toJSON(p));
+				placeNextDayTradeForPassiveIncome(accountId, ticker, null, 0f, shortQuantity);
+			} else {
+				// System.out.println("Opening a new sell put for Current Day -> " +
+				// Util.toJSON(p));
+				placeDailyTradeForPassiveIncome(accountId, ticker, null, 1f, shortQuantity);
+			}
+		}
+
 	}
 
 	private int getQuantity(int s, int l) {
@@ -580,7 +627,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 	}
 
 	private LocalDateTime getTheImmediateBusinessDay() {
-		return LocalDateTime.now().plusDays(findDaysToExpiration());
+		return LocalDateTime.now().plusDays(Util.findDaysToExpiration());
 
 	}
 
@@ -745,7 +792,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 				from = getImmediateFriday();
 				to = getImmediateFriday();
 			}
-			System.out.println(stockTicker + " - > " + from + " -> " + to);
+			System.out.println(stockTicker + " -> " + from + " -> " + to);
 		}
 		placeOptionTradesForPassiveIncome(accountId, stockTicker, callDistance, putDistance, numberOfContracts, from,
 				to);
@@ -787,6 +834,42 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		public static Ticker make(String stock, BigDecimal price) {
 			return new Ticker(stock, price);
 		}
+
+		public String toString() {
+			return ticker + " -> " + price + " -> " + optionSpreadDistance;
+		}
+	}
+
+	private int computeOptionSpreadDistance(int os, int tickerOS, Long expiryDate) {
+		try {
+			if (tickerOS != 0) {
+				return tickerOS;
+			}
+			Instant instant = Instant.ofEpochMilli(expiryDate);
+			LocalDateTime localDateTime = LocalDateTime.ofInstant(instant, ZoneId.of("UTC"));
+
+			LocalDateTime now = LocalDateTime.now();
+
+			long diff = ChronoUnit.DAYS.between(localDateTime, now);
+			
+			System.out.println("Difference for days -> " + expiryDate + " -> " + localDateTime + " -> [" + diff + "]");
+			if( diff > 5) {
+				diff-=2;
+			}
+			if( diff > 10) {
+				diff = 10;
+			}
+			if( diff <=0) {
+				diff = 1;
+			}
+			System.out.println("New calculated spread distance -> "+diff);
+			return (int)diff;
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+
+		}
+		return os;
 	}
 
 	public void placeOptionTradesForPassiveIncome(String accountId, Ticker ticker, Float callDistance,
@@ -805,10 +888,36 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		if (ticker.optionSpreadDistance != 0) {
 			optionSpreadDistance = ticker.optionSpreadDistance;
 		}
+
+		if (putDistance != null) {
+			BigDecimal putPrice = findPutPrice(price, putDistance);
+			Option sellPutOption = getPutOption(chain, putPrice);
+			// Option buyPutOption = getPutOption(chain, new BigDecimal(putPrice.intValue()
+			// - optionSpreadDistance));
+			optionSpreadDistance = computeOptionSpreadDistance(optionSpreadDistance, ticker.optionSpreadDistance,
+					sellPutOption.getExpirationDate());
+			Option buyPutOption = getPutOption(chain,
+					new BigDecimal(sellPutOption.getStrikePrice().doubleValue() - optionSpreadDistance));
+			System.out.println(Util.toJSON(sellPutOption) + " -> " + Util.toJSON(buyPutOption));
+			Order putOrder = createSpreadSellOrder(sellPutOption, buyPutOption, numberOfContracts);
+			System.out.println(Util.toJSON(putOrder));
+			client.placeOrder(accountId, putOrder);
+
+			Option sellPutProtectionOption = getPutOption(chain,
+					new BigDecimal(putPrice.intValue() + optionSpreadDistance));
+			Order sellPutProtectionOrder = Util.makeOption(sellPutProtectionOption.getSymbol(), numberOfContracts,
+					Duration.GOOD_TILL_CANCEL, 0.04d, OptionInstrument.PutCall.PUT, OrderType.LIMIT,
+					Instruction.BUY_TO_OPEN);
+		}
 		if (callDistance != null) {
 			BigDecimal callPrice = findCallPrice(price, callDistance);
 			Option sellCallOption = getCallOption(chain, callPrice);
-			Option buyCallOption = getCallOption(chain, new BigDecimal(callPrice.intValue() + optionSpreadDistance));
+			// Option buyCallOption = getCallOption(chain, new
+			// BigDecimal(callPrice.intValue() + optionSpreadDistance));
+			optionSpreadDistance = computeOptionSpreadDistance(optionSpreadDistance, ticker.optionSpreadDistance,
+					sellCallOption.getExpirationDate());
+			Option buyCallOption = getCallOption(chain,
+					new BigDecimal(sellCallOption.getStrikePrice().doubleValue() + optionSpreadDistance));
 			System.out.println(Util.toJSON(sellCallOption) + " -> " + Util.toJSON(buyCallOption));
 			Order callOrder = createSpreadSellOrder(sellCallOption, buyCallOption, numberOfContracts);
 			System.out.println(Util.toJSON(callOrder));
@@ -820,22 +929,6 @@ public class PassiveIncomeStrategy extends BaseHandler {
 					Duration.GOOD_TILL_CANCEL, 0.04d, OptionInstrument.PutCall.CALL, OrderType.LIMIT,
 					Instruction.BUY_TO_OPEN);
 
-		}
-
-		if (putDistance != null) {
-			BigDecimal putPrice = findPutPrice(price, putDistance);
-			Option sellPutOption = getPutOption(chain, putPrice);
-			Option buyPutOption = getPutOption(chain, new BigDecimal(putPrice.intValue() - optionSpreadDistance));
-			System.out.println(Util.toJSON(sellPutOption) + " -> " + Util.toJSON(buyPutOption));
-			Order putOrder = createSpreadSellOrder(sellPutOption, buyPutOption, numberOfContracts);
-			System.out.println(Util.toJSON(putOrder));
-			client.placeOrder(accountId, putOrder);
-
-			Option sellPutProtectionOption = getPutOption(chain,
-					new BigDecimal(putPrice.intValue() + optionSpreadDistance));
-			Order sellPutProtectionOrder = Util.makeOption(sellPutProtectionOption.getSymbol(), numberOfContracts,
-					Duration.GOOD_TILL_CANCEL, 0.04d, OptionInstrument.PutCall.PUT, OrderType.LIMIT,
-					Instruction.BUY_TO_OPEN);
 		}
 
 		// Util.makeOption(String optionSymbol, int quantity, Duration d, double
@@ -868,6 +961,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		// o.setDuration(sellOption.get);
 		o.setDuration(Duration.GOOD_TILL_CANCEL);
 		// o.setOrderType(OrderType.LIMIT);
+		// o.setOrderType(OrderType.MARKET);
 		BigDecimal x = sellOption.getLastPrice().subtract(buyOption.getLastPrice());
 		o.setPrice(x);
 		o.setOrderStrategyType(OrderStrategyType.SINGLE);
@@ -1088,29 +1182,31 @@ public class PassiveIncomeStrategy extends BaseHandler {
 	private Option findNearestHigherOption(BigDecimal bd,
 			Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry) {
 		OptionFinder of = (x, y) -> {
-			return (x.doubleValue() <= y.doubleValue());
+			return (x.doubleValue() >= y.doubleValue());
 		};
-		Option o = findNearestOption(bd, optionsMapForDifferentExpiry, of);
+		Option o = findNearestOption(bd, optionsMapForDifferentExpiry, of, new TreeMap<Double, Option>());
 		return o;
 	}
 
 	private Option findNearestLowerOption(BigDecimal bd,
 			Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry) {
 		OptionFinder of = (x, y) -> {
-			return (x.doubleValue() >= y.doubleValue());
+			return (x.doubleValue() <= y.doubleValue());
 		};
-		Option o = findNearestOption(bd, optionsMapForDifferentExpiry, of);
+		Option o = findNearestOption(bd, optionsMapForDifferentExpiry, of,
+				new TreeMap<Double, Option>(Collections.reverseOrder()));
 		return o;
 
 	}
 
 	private Option findNearestOption(BigDecimal bd,
-			Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry, OptionFinder finder) {
+			Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry, OptionFinder finder,
+			TreeMap<Double, Option> optionMap) {
 		if (optionsMapForDifferentExpiry.size() == 0) {
 			return null;
 		}
 		Map<BigDecimal, List<Option>> optionsMap = optionsMapForDifferentExpiry.values().iterator().next();
-		TreeMap<Double, Option> optionMap = new TreeMap<Double, Option>();
+		// TreeMap<Double, Option> optionMap = new TreeMap<Double, Option>();
 		for (Map.Entry<BigDecimal, List<Option>> e : optionsMap.entrySet()) {
 			BigDecimal price = e.getKey();
 			Option o = e.getValue().iterator().next();
@@ -1149,23 +1245,35 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		return req;
 	}
 
-	private Integer findDaysToExpiration() {
-		LocalDate date = LocalDate.now();
-		if (date.getDayOfWeek() == DayOfWeek.SATURDAY) {
-			return 2;
+	private void openNewOptionPositionForSellCallOrPutBackup(String accountId, Position p, Ticker ticker) {
+		OptionInstrument oi = (OptionInstrument) p.getInstrument();
+		int shortQuantity = p.getShortQuantity().intValue();
+		int tradeShortQuantity = shortQuantity;
+		if (shortQuantity > 0) {
+			if (oi.getPutCall() == OptionInstrument.PutCall.CALL) {
+				if (Util.isLastHourOfTrading()) {
+					// System.out.println("Opening a new sell call for Next Day -> " +
+					// Util.toJSON(p));
+					placeNextDayTradeForPassiveIncome(accountId, ticker, 0f, null, tradeShortQuantity);
 
+				} else {
+					// System.out.println("Opening a new sell call for Current Day -> " +
+					// Util.toJSON(p));
+					placeDailyTradeForPassiveIncome(accountId, ticker, 1f, null, tradeShortQuantity);
+				}
+			}
+			if (oi.getPutCall() == OptionInstrument.PutCall.PUT) {
+				if (Util.isLastHourOfTrading()) {
+					// System.out.println("Opening a new sell put for Next Day -> " +
+					// Util.toJSON(p));
+					placeNextDayTradeForPassiveIncome(accountId, ticker, null, 0f, tradeShortQuantity);
+				} else {
+					// System.out.println("Opening a new sell put for Current Day -> " +
+					// Util.toJSON(p));
+					placeDailyTradeForPassiveIncome(accountId, ticker, null, 1f, tradeShortQuantity);
+				}
+			}
 		}
-		if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
-			return 1;
-		}
-		LocalTime time = LocalTime.now();
-
-		// System.out.println(time.getHour());
-		// After 12 PM - pick the next day
-		if (time.getHour() > 13) {
-			return 1;
-		}
-		return 0;
 	}
 
 }

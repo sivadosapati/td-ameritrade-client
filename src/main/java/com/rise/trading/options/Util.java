@@ -32,6 +32,7 @@ import com.studerw.tda.client.HttpTdaClient;
 import com.studerw.tda.model.account.ComplexOrderStrategyType;
 import com.studerw.tda.model.account.Duration;
 import com.studerw.tda.model.account.EquityInstrument;
+import com.studerw.tda.model.account.Instrument;
 import com.studerw.tda.model.account.Instrument.AssetType;
 import com.studerw.tda.model.account.OptionInstrument;
 import com.studerw.tda.model.account.Order;
@@ -41,18 +42,21 @@ import com.studerw.tda.model.account.OrderStrategyType;
 import com.studerw.tda.model.account.OrderType;
 import com.studerw.tda.model.account.Position;
 import com.studerw.tda.model.account.Session;
-import com.studerw.tda.model.account.Instrument;
 import com.studerw.tda.model.quote.EquityQuote;
 import com.studerw.tda.model.quote.EtfQuote;
 import com.studerw.tda.model.quote.Quote;
 
 public class Util {
 
+	// Tweak this when we are in different time zone, FOR EST, this number should be
+	// 3, for CST, it should be 2
 	public static int HOURS_TO_ADJUST_FOR_PST = 0;
 
 	private static Properties props = fetchProperties();
 	private static Accounts accounts = fetchAccounts();
 	private static HttpTdaClient httpTDAClient = null;
+	
+	
 
 	public static void main(String args[]) throws Exception {
 		playWithDates();
@@ -350,6 +354,13 @@ public class Util {
 
 	}
 	
+	public static Order makeSmartOptionWhenTheSymbolDoesntExist(String optionSymbol, int quantity, Duration d, Double price,
+			OptionInstrument.PutCall pc, OrderType type, Instruction i) {
+		
+		
+		return makeOption(optionSymbol, quantity, d, price, pc, type, i);
+	}
+
 	public static boolean notMarketHours() {
 		LocalDate date = LocalDate.now();
 		if (date.getDayOfWeek() == DayOfWeek.SATURDAY) {
@@ -363,21 +374,21 @@ public class Util {
 
 		// System.out.println(time.getHour());
 		// After 12 PM - pick the next day
-		if (time.getHour() > 14) {
+		if (time.getHour() >= 14 + HOURS_TO_ADJUST_FOR_PST) {
 			return false;
 		}
-		if (time.getHour() < 6) {
+		if (time.getHour() < 6 + HOURS_TO_ADJUST_FOR_PST) {
 			return false;
 		}
-		if (time.getHour() == 6) {
+		if (time.getHour() == 6 + HOURS_TO_ADJUST_FOR_PST) {
 			if (time.getMinute() >= 30) {
 				return true;
 			} else {
 				return false;
 			}
 		}
-		if (time.getHour() == 13) {
-			if (time.getMinute() < 15) {
+		if (time.getHour() == 13 + HOURS_TO_ADJUST_FOR_PST) {
+			if (time.getMinute() < 15 + HOURS_TO_ADJUST_FOR_PST) {
 				return true;
 			} else {
 				return false;
@@ -482,5 +493,52 @@ public class Util {
 		}
 		throw new RuntimeException("CODE ME");
 
+	}
+
+	public static List<String> tickersThatTradeAfterHoursForOptions = Arrays.asList("QQQ", "SPY", "IWM");
+
+	public static boolean isLastFewMinutesOfMarketHours(String ticker) {
+		LocalDateTime ldt = LocalDateTime.now();
+		int hour = ldt.getHour();
+		int min = ldt.getMinute();
+
+		if (tickersThatTradeAfterHoursForOptions.contains(ticker)) {
+			if (hour == 13 + HOURS_TO_ADJUST_FOR_PST  && min > 10) {
+				return true;
+			}
+			return false;
+		} else {
+			if (hour == 12 + HOURS_TO_ADJUST_FOR_PST && min > 45) {
+				return true;
+			}
+			return false;
+		}
+
+	}
+	public static boolean isLastHourOfTrading() {
+		LocalDateTime ldt = LocalDateTime.now();
+		if (ldt.getHour() == 12 + HOURS_TO_ADJUST_FOR_PST) {
+			return true;
+		}
+		return false;
+	}
+	
+	public static Integer findDaysToExpiration() {
+		LocalDate date = LocalDate.now();
+		if (date.getDayOfWeek() == DayOfWeek.SATURDAY) {
+			return 2;
+
+		}
+		if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
+			return 1;
+		}
+		LocalTime time = LocalTime.now();
+
+		// System.out.println(time.getHour());
+		// After 12 PM - pick the next day
+		if (time.getHour() > 13 + HOURS_TO_ADJUST_FOR_PST) {
+			return 1;
+		}
+		return 0;
 	}
 }

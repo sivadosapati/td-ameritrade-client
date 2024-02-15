@@ -263,28 +263,7 @@ public class BaseHandler {
 
 	List<String> tickersThatTradeAfterHoursForOptions = Arrays.asList("QQQ", "SPY", "IWM");
 
-	protected boolean isLastFewMinutesOfMarketHours(String ticker) {
-		LocalDateTime ldt = LocalDateTime.now();
-		int hour = ldt.getHourOfDay();
-		//if (hour < 12 || hour > 13) {
-		//	return false;
-		//}
-		int min = ldt.getMinuteOfHour();
-
-		if (tickersThatTradeAfterHoursForOptions.contains(ticker)) {
-			if( hour == 13 && min > 10) {
-				return true;
-			}
-			return false;
-		}
-		else {
-			if( hour == 12 && min > 45) {
-				return true;
-			}
-			return false;
-		}
-
-	}
+	
 
 	public void closeOptionPositionAtMarketPrice(String accountId, Position position) {
 		// BigDecimal callQuantity = new

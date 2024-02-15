@@ -8,13 +8,25 @@ public class OptionData {
 	String putOrCall;
 	BigDecimal price;
 
+	//If Quantity is negative, then it is short position else, it's a long position
+	
+	int quantity;
+	
+	public void setQuantity(int q) {
+		this.quantity = q;
+	}
+	
+	public int getQuantity() {
+		return quantity;
+	}
+
 	public OptionData(String stockTicker, String date, String putOrCall, BigDecimal price) {
 		this.stockTicker = stockTicker;
 		this.date = date;
 		this.putOrCall = putOrCall;
 		this.price = price;
 	}
-	
+
 	public void setPrice(double price) {
 		this.price = new BigDecimal(price);
 	}
@@ -29,6 +41,10 @@ public class OptionData {
 
 	private String convert(double x) {
 		return stockTicker + "_" + date + putOrCall + convertDecimalToString(x);
+	}
+	
+	public String toString() {
+		return convert(price.doubleValue())+" : "+quantity;
 	}
 
 	public static String convertDecimalToString(double number) {
