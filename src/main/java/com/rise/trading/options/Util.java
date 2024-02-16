@@ -19,6 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +27,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TimeZone;
+import java.util.TreeMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studerw.tda.client.HttpTdaClient;
@@ -42,6 +44,10 @@ import com.studerw.tda.model.account.OrderStrategyType;
 import com.studerw.tda.model.account.OrderType;
 import com.studerw.tda.model.account.Position;
 import com.studerw.tda.model.account.Session;
+import com.studerw.tda.model.option.Option;
+import com.studerw.tda.model.option.OptionChain;
+import com.studerw.tda.model.option.OptionChainReq;
+import com.studerw.tda.model.option.OptionChainReq.Range;
 import com.studerw.tda.model.quote.EquityQuote;
 import com.studerw.tda.model.quote.EtfQuote;
 import com.studerw.tda.model.quote.Quote;
@@ -55,11 +61,12 @@ public class Util {
 	private static Properties props = fetchProperties();
 	private static Accounts accounts = fetchAccounts();
 	private static HttpTdaClient httpTDAClient = null;
-	
-	
 
 	public static void main(String args[]) throws Exception {
-		playWithDates();
+		//playWithDates();
+		String symbol = "SPY_021624P501";
+		Option o = findRightNearestOption(symbol);
+		System.out.println(Util.toJSON(o));
 	}
 
 	public static String getEODToken() {
@@ -353,12 +360,40 @@ public class Util {
 		return o;
 
 	}
-	
-	public static Order makeSmartOptionWhenTheSymbolDoesntExist(String optionSymbol, int quantity, Duration d, Double price,
-			OptionInstrument.PutCall pc, OrderType type, Instruction i) {
+
+	public static Order makeSmartOptionWhenTheSymbolDoesntExist(String optionSymbol, int quantity, Duration d,
+			Double price, OptionInstrument.PutCall pc, OrderType type, Instruction i) {
+
+		Option o = findRightNearestOption(optionSymbol);
+		System.out.println("makeSmartOptionWhenTheSymbolDoesntExist -> " + Util.toJSON(o));
+		Order oo = makeOption(o.getSymbol(), quantity, d, price, pc, type, i);
 		
-		
-		return makeOption(optionSymbol, quantity, d, price, pc, type, i);
+		return oo;
+	}
+
+	public static OptionChainReq makeOptionChainRequest(String symbol, LocalDateTime from, LocalDateTime to) {
+
+		OptionChainReq req = OptionChainReq.Builder.optionChainReq().withSymbol(symbol)
+				// .withDaysToExpiration(findDaysToExpiration())
+				// .withFromDate(from).withToDate(to).withRange(Range.OTM)
+				.withFromDate(from).withToDate(to).withRange(Range.ALL)
+
+				.build();
+		return req;
+	}
+
+	public static Option findRightNearestOption(String os) {
+		OptionData od = OptionSymbolParser.parse(os);
+		LocalDateTime x = od.getDateTime();
+		OptionChainReq request = makeOptionChainRequest(od.stockTicker, x, x);
+		// OptionChain chain = client.getOptionChain(stockTicker);
+		OptionChain chain = getHttpTDAClient().getOptionChain(request);
+		BigDecimal price = od.price;
+		if (od.isCall()) {
+			return getCallOption(chain, price);
+		} else {
+			return getPutOption(chain, price);
+		}
 	}
 
 	public static boolean notMarketHours() {
@@ -503,7 +538,7 @@ public class Util {
 		int min = ldt.getMinute();
 
 		if (tickersThatTradeAfterHoursForOptions.contains(ticker)) {
-			if (hour == 13 + HOURS_TO_ADJUST_FOR_PST  && min > 10) {
+			if (hour == 13 + HOURS_TO_ADJUST_FOR_PST && min > 10) {
 				return true;
 			}
 			return false;
@@ -515,6 +550,7 @@ public class Util {
 		}
 
 	}
+
 	public static boolean isLastHourOfTrading() {
 		LocalDateTime ldt = LocalDateTime.now();
 		if (ldt.getHour() == 12 + HOURS_TO_ADJUST_FOR_PST) {
@@ -522,7 +558,7 @@ public class Util {
 		}
 		return false;
 	}
-	
+
 	public static Integer findDaysToExpiration() {
 		LocalDate date = LocalDate.now();
 		if (date.getDayOfWeek() == DayOfWeek.SATURDAY) {
@@ -541,4 +577,90 @@ public class Util {
 		}
 		return 0;
 	}
+
+	public static Option getPutOption(OptionChain chain, BigDecimal bd) {
+		Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry = chain.getPutExpDateMap();
+		Option o = findOption(bd, optionsMapForDifferentExpiry);
+		if (o != null) {
+			return o;
+		}
+		o = findNearestLowerOption(bd, optionsMapForDifferentExpiry);
+		System.out.println(Util.toJSON(o));
+		return o;
+	}
+
+	public static Option getCallOption(OptionChain chain, BigDecimal bd) {
+		Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry = chain.getCallExpDateMap();
+		Option o = findOption(bd, optionsMapForDifferentExpiry);
+		if (o != null) {
+			return o;
+		}
+		o = findNearestHigherOption(bd, optionsMapForDifferentExpiry);
+		System.out.println(Util.toJSON(o));
+		return o;
+	}
+
+	public static Option findOption(BigDecimal bd,
+			Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry) {
+		if (optionsMapForDifferentExpiry.size() == 0) {
+			return null;
+		}
+		Map<BigDecimal, List<Option>> optionsMap = optionsMapForDifferentExpiry.values().iterator().next();
+
+		for (Map.Entry<BigDecimal, List<Option>> e : optionsMap.entrySet()) {
+			BigDecimal price = e.getKey();
+			Option o = e.getValue().iterator().next();
+			if (price.intValue() == bd.intValue()) {
+				return o;
+			}
+
+		}
+		return null;
+	}
+
+	public static Option findNearestHigherOption(BigDecimal bd,
+			Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry) {
+		OptionFinder of = (x, y) -> {
+			return (x.doubleValue() >= y.doubleValue());
+		};
+		Option o = findNearestOption(bd, optionsMapForDifferentExpiry, of, new TreeMap<Double, Option>());
+		return o;
+	}
+
+	public static Option findNearestLowerOption(BigDecimal bd,
+			Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry) {
+		OptionFinder of = (x, y) -> {
+			return (x.doubleValue() <= y.doubleValue());
+		};
+		Option o = findNearestOption(bd, optionsMapForDifferentExpiry, of,
+				new TreeMap<Double, Option>(Collections.reverseOrder()));
+		return o;
+
+	}
+
+	public static Option findNearestOption(BigDecimal bd,
+			Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry, OptionFinder finder,
+			TreeMap<Double, Option> optionMap) {
+		if (optionsMapForDifferentExpiry.size() == 0) {
+			return null;
+		}
+		Map<BigDecimal, List<Option>> optionsMap = optionsMapForDifferentExpiry.values().iterator().next();
+		// TreeMap<Double, Option> optionMap = new TreeMap<Double, Option>();
+		for (Map.Entry<BigDecimal, List<Option>> e : optionsMap.entrySet()) {
+			BigDecimal price = e.getKey();
+			Option o = e.getValue().iterator().next();
+			if (finder.match(price, bd)) {
+				optionMap.put(price.doubleValue(), o);
+			}
+		}
+		if (optionMap.size() > 0) {
+			return optionMap.values().iterator().next();
+		}
+		return null;
+	}
+
+	interface OptionFinder {
+		boolean match(BigDecimal optionPrice, BigDecimal price);
+	}
+
 }

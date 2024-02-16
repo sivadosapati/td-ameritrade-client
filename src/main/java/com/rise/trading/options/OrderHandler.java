@@ -1,15 +1,12 @@
 package com.rise.trading.options;
 
 import java.math.BigDecimal;
-import java.text.DecimalFormat;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.studerw.tda.client.HttpTdaClient;
 import com.studerw.tda.model.account.Duration;
 import com.studerw.tda.model.account.Instrument;
 import com.studerw.tda.model.account.Instrument.AssetType;
@@ -17,12 +14,10 @@ import com.studerw.tda.model.account.OptionInstrument;
 import com.studerw.tda.model.account.Order;
 import com.studerw.tda.model.account.OrderLegCollection;
 import com.studerw.tda.model.account.OrderLegCollection.Instruction;
-import com.studerw.tda.model.account.OrderRequest;
 import com.studerw.tda.model.account.OrderStrategyType;
 import com.studerw.tda.model.account.OrderType;
 import com.studerw.tda.model.account.Position;
 import com.studerw.tda.model.account.Session;
-import com.studerw.tda.model.account.Status;
 import com.studerw.tda.model.option.Option;
 import com.studerw.tda.model.option.OptionChain;
 import com.studerw.tda.model.option.OptionChainReq;
@@ -30,8 +25,6 @@ import com.studerw.tda.model.option.OptionChainReq.ContractType;
 import com.studerw.tda.model.option.OptionChainReq.Range;
 
 public class OrderHandler extends BaseHandler {
-
-
 
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
@@ -45,7 +38,6 @@ public class OrderHandler extends BaseHandler {
 			getClient().cancelOrder(accountId, order.getOrderId() + "");
 		}
 	}
-	
 
 	public OptionChain getOptionChain(String symbol, OptionChainReq.ContractType contractType, LocalDateTime toDate,
 			Range range) {
@@ -66,14 +58,14 @@ public class OrderHandler extends BaseHandler {
 		}
 
 	}
-	
+
 	public void placeProtectionCallTradesOnShortOptions(String accountId) {
 		GroupedPositions gp = getGroupedPositions(accountId);
 		List<Order> orders = getCurrentWorkingOrders(accountId);
 		for (String symbol : gp.getSymbols()) {
 			GroupedPosition groupedPosition = gp.getGroupedPosition(symbol);
 			placeProtectionLongOptionForShortOptionIfNotExisting(groupedPosition, orders, accountId);
-		}	
+		}
 	}
 
 	public void workOnOptionsAndTheirCorrespondingClosingOrder(String accountId,
@@ -143,16 +135,16 @@ public class OrderHandler extends BaseHandler {
 		}
 
 	}
-	
-	private void placeProtectionLongOptionForShortOptionIfNotExisting(GroupedPosition groupedPosition, List<Order> orders,
-			String accountId) {
+
+	private void placeProtectionLongOptionForShortOptionIfNotExisting(GroupedPosition groupedPosition,
+			List<Order> orders, String accountId) {
 		List<Position> options = groupedPosition.getOptions();
 		if (options.size() == 0) {
 			return;
 		}
 		for (Position p : options) {
 			OptionInstrument oic = (OptionInstrument) p.getInstrument();
-			
+
 			// System.out.println(oic.getSymbol());
 			Order existingOrder = null;
 			for (Order o : orders) {
@@ -164,9 +156,9 @@ public class OrderHandler extends BaseHandler {
 				}
 			}
 			if (existingOrder == null) {
-				//createAndPlaceClosingOrder(p, accountId);
+				// createAndPlaceClosingOrder(p, accountId);
 			} else {
-				//optimizeExistingOrder(existingOrder, p, accountId);
+				// optimizeExistingOrder(existingOrder, p, accountId);
 			}
 
 		}
@@ -181,19 +173,18 @@ public class OrderHandler extends BaseHandler {
 	public void createAndPlaceClosingOrder(Position p, String accountId) {
 		String json = toJSON(p);
 		System.out.println(json);
-		if( p.getLongQuantity().intValue() > 0) {
+		if (p.getLongQuantity().intValue() > 0) {
 			return;
 		}
 		Order order = createClosingOrder(p);
 		getClient().placeOrder(accountId, order);
 	}
 
-
 	private Order createClosingOrder(Position position) {
 		double d = position.getAveragePrice().doubleValue();
-		return createClosingOrder(position, rnd(d * 4), rnd (0.04d) );
+		return createClosingOrder(position, rnd(d * 4), rnd(0.04d));
 	}
-	
+
 	private Order createClosingOrderOld(Position position) {
 		// BigDecimal callQuantity = new
 		// BigDecimal(gp.getNumberOfPotentialCoveredCallContracts());

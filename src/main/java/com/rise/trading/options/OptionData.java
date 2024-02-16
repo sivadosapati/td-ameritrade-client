@@ -1,6 +1,9 @@
 package com.rise.trading.options;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class OptionData {
 	String stockTicker;
@@ -8,14 +11,34 @@ public class OptionData {
 	String putOrCall;
 	BigDecimal price;
 
-	//If Quantity is negative, then it is short position else, it's a long position
-	
+	// If Quantity is negative, then it is short position else, it's a long position
+
 	int quantity;
-	
+
 	public void setQuantity(int q) {
 		this.quantity = q;
 	}
-	
+
+	public LocalDateTime getDateTime() {
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMddyy");
+		LocalDate dateTime = LocalDate.parse(date, formatter);
+		return dateTime.atStartOfDay();
+	}
+
+	public boolean isPut() {
+		if (putOrCall.equals("P")) {
+			return true;
+		}
+		return false;
+	}
+
+	public boolean isCall() {
+		if (putOrCall.equals("C")) {
+			return true;
+		}
+		return false;
+	}
+
 	public int getQuantity() {
 		return quantity;
 	}
@@ -42,9 +65,9 @@ public class OptionData {
 	private String convert(double x) {
 		return stockTicker + "_" + date + putOrCall + convertDecimalToString(x);
 	}
-	
+
 	public String toString() {
-		return convert(price.doubleValue())+" : "+quantity;
+		return convert(price.doubleValue()) + " : " + quantity;
 	}
 
 	public static String convertDecimalToString(double number) {

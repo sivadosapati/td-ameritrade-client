@@ -10,8 +10,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.TreeSet;
 
-import org.joda.time.LocalDateTime;
-
 import com.studerw.tda.client.HttpTdaClient;
 import com.studerw.tda.model.account.Duration;
 import com.studerw.tda.model.account.Instrument.AssetType;
@@ -262,8 +260,6 @@ public class BaseHandler {
 	}
 
 	List<String> tickersThatTradeAfterHoursForOptions = Arrays.asList("QQQ", "SPY", "IWM");
-
-	
 
 	public void closeOptionPositionAtMarketPrice(String accountId, Position position) {
 		// BigDecimal callQuantity = new

@@ -276,7 +276,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 
 	public void closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(String accountId) {
 		GroupedPositions gps = getGroupedPositions(accountId);
-		LocalDate ld = getTheImmediateBusinessDay().toLocalDate();
+		//LocalDate ld = getTheImmediateBusinessDay().toLocalDate();
 		Set<String> symbols = new HashSet<String>();
 		OptionPositions op = new OptionPositions();
 		for (GroupedPosition gp : gps.getGroupedPositions()) {
@@ -295,7 +295,11 @@ public class PassiveIncomeStrategy extends BaseHandler {
 			// List<Position> o = getOptionPositionsThatExpireOnThisDay(gp, ld);
 
 			for (Position p : o) {
-				closeOptionIfInProfitAndPotentiallyOpenNewOne(p, accountId, prices.get(Util.getTickerSymbol(p)));
+				try {
+					closeOptionIfInProfitAndPotentiallyOpenNewOne(p, accountId, prices.get(Util.getTickerSymbol(p)));
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
 		}
 	}
@@ -350,10 +354,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 			// String option = pop.nextOption;
 			// Order order = Util.makeOption(pop.nextOption, 1, pop.od., price, pc, type, i)
 			if (longQuantity > 0) {
-				Order order = Util.makeOption(pop.nextOption, getQuantity(shortQuantity, longQuantity), Duration.DAY,
-						null, oi.getPutCall(), OrderType.MARKET, pop.instruction);
-				System.out.println(Util.toJSON(order));
-				getClient().placeOrder(accountId, order);
+				placeNextLongOptionOrder(accountId, oi, shortQuantity, longQuantity, pop);
 			}
 			closeSellOptionAndOpenNewOne(accountId, p, tick);
 			return;
@@ -368,6 +369,24 @@ public class PassiveIncomeStrategy extends BaseHandler {
 			}
 		}
 
+	}
+
+	private void placeNextLongOptionOrder(String accountId, OptionInstrument oi, int shortQuantity, int longQuantity,
+			PossibleOptionAndProfit pop) {
+		Order order = null;
+		try {
+			order = Util.makeOption(pop.nextOption, getQuantity(shortQuantity, longQuantity), Duration.DAY, null,
+					oi.getPutCall(), OrderType.MARKET, pop.instruction);
+			System.out.println(Util.toJSON(order));
+			getClient().placeOrder(accountId, order);
+		} catch (RuntimeException e) {
+			e.printStackTrace();
+			order = Util.makeSmartOptionWhenTheSymbolDoesntExist(pop.nextOption,
+					getQuantity(shortQuantity, longQuantity), Duration.DAY, null, oi.getPutCall(), OrderType.MARKET,
+					pop.instruction);
+			System.out.println(Util.toJSON(order));
+			getClient().placeOrder(accountId, order);
+		}
 	}
 
 	private Ticker createTicker(String stock, double currentStockPrice, BigDecimal optionPrice) {
@@ -649,15 +668,15 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		HttpTdaClient client = getClient();
 		LocalDateTime to = getTheImmediateBusinessDay();
 		LocalDateTime from = to;
-		OptionChainReq request = makeOptionChainRequestForDailyTrade(stockTicker, from, to);
+		OptionChainReq request = Util.makeOptionChainRequest(stockTicker, from, to);
 		// OptionChain chain = client.getOptionChain(stockTicker);
 		OptionChain chain = client.getOptionChain(request);
 		// System.out.println(Util.toJSON(chain));
 		BigDecimal price = chain.getUnderlyingPrice();
 		BigDecimal callPrice = findCallPrice(price, callDistance);
-		Option callOption = getCallOption(chain, callPrice);
+		Option callOption = Util.getCallOption(chain, callPrice);
 		BigDecimal putPrice = findPutPrice(price, putDistance);
-		Option putOption = getPutOption(chain, putPrice);
+		Option putOption = Util.getPutOption(chain, putPrice);
 		System.out.println(callPrice + " : " + putPrice);
 		System.out.println(Util.toJSON(callOption));
 		System.out.println(Util.toJSON(putOption));
@@ -851,19 +870,19 @@ public class PassiveIncomeStrategy extends BaseHandler {
 			LocalDateTime now = LocalDateTime.now();
 
 			long diff = ChronoUnit.DAYS.between(localDateTime, now);
-			
+
 			System.out.println("Difference for days -> " + expiryDate + " -> " + localDateTime + " -> [" + diff + "]");
-			if( diff > 5) {
-				diff-=2;
+			if (diff > 5) {
+				diff -= 2;
 			}
-			if( diff > 10) {
+			if (diff > 10) {
 				diff = 10;
 			}
-			if( diff <=0) {
+			if (diff <= 0) {
 				diff = 1;
 			}
-			System.out.println("New calculated spread distance -> "+diff);
-			return (int)diff;
+			System.out.println("New calculated spread distance -> " + diff);
+			return (int) diff;
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -875,7 +894,7 @@ public class PassiveIncomeStrategy extends BaseHandler {
 	public void placeOptionTradesForPassiveIncome(String accountId, Ticker ticker, Float callDistance,
 			Float putDistance, int numberOfContracts, LocalDateTime from, LocalDateTime to) {
 		HttpTdaClient client = getClient();
-		OptionChainReq request = makeOptionChainRequestForDailyTrade(ticker.ticker, from, to);
+		OptionChainReq request = Util.makeOptionChainRequest(ticker.ticker, from, to);
 		// OptionChain chain = client.getOptionChain(stockTicker);
 		OptionChain chain = client.getOptionChain(request);
 		// System.out.println(Util.toJSON(chain));
@@ -891,19 +910,19 @@ public class PassiveIncomeStrategy extends BaseHandler {
 
 		if (putDistance != null) {
 			BigDecimal putPrice = findPutPrice(price, putDistance);
-			Option sellPutOption = getPutOption(chain, putPrice);
+			Option sellPutOption = Util.getPutOption(chain, putPrice);
 			// Option buyPutOption = getPutOption(chain, new BigDecimal(putPrice.intValue()
 			// - optionSpreadDistance));
 			optionSpreadDistance = computeOptionSpreadDistance(optionSpreadDistance, ticker.optionSpreadDistance,
 					sellPutOption.getExpirationDate());
-			Option buyPutOption = getPutOption(chain,
+			Option buyPutOption = Util.getPutOption(chain,
 					new BigDecimal(sellPutOption.getStrikePrice().doubleValue() - optionSpreadDistance));
 			System.out.println(Util.toJSON(sellPutOption) + " -> " + Util.toJSON(buyPutOption));
 			Order putOrder = createSpreadSellOrder(sellPutOption, buyPutOption, numberOfContracts);
 			System.out.println(Util.toJSON(putOrder));
 			client.placeOrder(accountId, putOrder);
 
-			Option sellPutProtectionOption = getPutOption(chain,
+			Option sellPutProtectionOption = Util.getPutOption(chain,
 					new BigDecimal(putPrice.intValue() + optionSpreadDistance));
 			Order sellPutProtectionOrder = Util.makeOption(sellPutProtectionOption.getSymbol(), numberOfContracts,
 					Duration.GOOD_TILL_CANCEL, 0.04d, OptionInstrument.PutCall.PUT, OrderType.LIMIT,
@@ -911,19 +930,19 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		}
 		if (callDistance != null) {
 			BigDecimal callPrice = findCallPrice(price, callDistance);
-			Option sellCallOption = getCallOption(chain, callPrice);
+			Option sellCallOption = Util.getCallOption(chain, callPrice);
 			// Option buyCallOption = getCallOption(chain, new
 			// BigDecimal(callPrice.intValue() + optionSpreadDistance));
 			optionSpreadDistance = computeOptionSpreadDistance(optionSpreadDistance, ticker.optionSpreadDistance,
 					sellCallOption.getExpirationDate());
-			Option buyCallOption = getCallOption(chain,
+			Option buyCallOption = Util.getCallOption(chain,
 					new BigDecimal(sellCallOption.getStrikePrice().doubleValue() + optionSpreadDistance));
 			System.out.println(Util.toJSON(sellCallOption) + " -> " + Util.toJSON(buyCallOption));
 			Order callOrder = createSpreadSellOrder(sellCallOption, buyCallOption, numberOfContracts);
 			System.out.println(Util.toJSON(callOrder));
 			client.placeOrder(accountId, callOrder);
 
-			Option sellCallProtectionOption = getCallOption(chain,
+			Option sellCallProtectionOption = Util.getCallOption(chain,
 					new BigDecimal(callPrice.intValue() - optionSpreadDistance));
 			Order sellCallProtectionOrder = Util.makeOption(sellCallProtectionOption.getSymbol(), numberOfContracts,
 					Duration.GOOD_TILL_CANCEL, 0.04d, OptionInstrument.PutCall.CALL, OrderType.LIMIT,
@@ -1140,90 +1159,6 @@ public class PassiveIncomeStrategy extends BaseHandler {
 		return order;
 	}
 
-	private Option getPutOption(OptionChain chain, BigDecimal bd) {
-		Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry = chain.getPutExpDateMap();
-		Option o = findOption(bd, optionsMapForDifferentExpiry);
-		if (o != null) {
-			return o;
-		}
-		o = findNearestLowerOption(bd, optionsMapForDifferentExpiry);
-		System.out.println(Util.toJSON(o));
-		return o;
-	}
-
-	private Option getCallOption(OptionChain chain, BigDecimal bd) {
-		Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry = chain.getCallExpDateMap();
-		Option o = findOption(bd, optionsMapForDifferentExpiry);
-		if (o != null) {
-			return o;
-		}
-		o = findNearestHigherOption(bd, optionsMapForDifferentExpiry);
-		System.out.println(Util.toJSON(o));
-		return o;
-	}
-
-	private Option findOption(BigDecimal bd, Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry) {
-		if (optionsMapForDifferentExpiry.size() == 0) {
-			return null;
-		}
-		Map<BigDecimal, List<Option>> optionsMap = optionsMapForDifferentExpiry.values().iterator().next();
-
-		for (Map.Entry<BigDecimal, List<Option>> e : optionsMap.entrySet()) {
-			BigDecimal price = e.getKey();
-			Option o = e.getValue().iterator().next();
-			if (price.intValue() == bd.intValue()) {
-				return o;
-			}
-
-		}
-		return null;
-	}
-
-	private Option findNearestHigherOption(BigDecimal bd,
-			Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry) {
-		OptionFinder of = (x, y) -> {
-			return (x.doubleValue() >= y.doubleValue());
-		};
-		Option o = findNearestOption(bd, optionsMapForDifferentExpiry, of, new TreeMap<Double, Option>());
-		return o;
-	}
-
-	private Option findNearestLowerOption(BigDecimal bd,
-			Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry) {
-		OptionFinder of = (x, y) -> {
-			return (x.doubleValue() <= y.doubleValue());
-		};
-		Option o = findNearestOption(bd, optionsMapForDifferentExpiry, of,
-				new TreeMap<Double, Option>(Collections.reverseOrder()));
-		return o;
-
-	}
-
-	private Option findNearestOption(BigDecimal bd,
-			Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry, OptionFinder finder,
-			TreeMap<Double, Option> optionMap) {
-		if (optionsMapForDifferentExpiry.size() == 0) {
-			return null;
-		}
-		Map<BigDecimal, List<Option>> optionsMap = optionsMapForDifferentExpiry.values().iterator().next();
-		// TreeMap<Double, Option> optionMap = new TreeMap<Double, Option>();
-		for (Map.Entry<BigDecimal, List<Option>> e : optionsMap.entrySet()) {
-			BigDecimal price = e.getKey();
-			Option o = e.getValue().iterator().next();
-			if (finder.match(price, bd)) {
-				optionMap.put(price.doubleValue(), o);
-			}
-		}
-		if (optionMap.size() > 0) {
-			return optionMap.values().iterator().next();
-		}
-		return null;
-	}
-
-	interface OptionFinder {
-		boolean match(BigDecimal optionPrice, BigDecimal price);
-	}
-
 	private BigDecimal findPutPrice(BigDecimal price, float putDistance) {
 		double p = Math.ceil(price.floatValue() - putDistance);
 		return new BigDecimal(p);
@@ -1232,17 +1167,6 @@ public class PassiveIncomeStrategy extends BaseHandler {
 	private BigDecimal findCallPrice(BigDecimal price, float callDistance) {
 		double p = Math.floor(price.floatValue() + callDistance);
 		return new BigDecimal(p);
-	}
-
-	private OptionChainReq makeOptionChainRequestForDailyTrade(String symbol, LocalDateTime from, LocalDateTime to) {
-
-		OptionChainReq req = OptionChainReq.Builder.optionChainReq().withSymbol(symbol)
-				// .withDaysToExpiration(findDaysToExpiration())
-				// .withFromDate(from).withToDate(to).withRange(Range.OTM)
-				.withFromDate(from).withToDate(to).withRange(Range.ALL)
-
-				.build();
-		return req;
 	}
 
 	private void openNewOptionPositionForSellCallOrPutBackup(String accountId, Position p, Ticker ticker) {
