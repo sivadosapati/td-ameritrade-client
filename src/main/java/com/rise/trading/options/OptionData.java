@@ -5,15 +5,44 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+import com.studerw.tda.model.account.OptionInstrument;
+import com.studerw.tda.model.account.OptionInstrument.PutCall;
+
 public class OptionData {
 	String stockTicker;
 	String date;
 	String putOrCall;
 	BigDecimal price;
+	
+	String adjacentHigherSymbol;
+	String adjacentLowerSymbol;
+	
+	public String getStockTicker() {
+		return stockTicker;
+	}
+	
+	
 
 	// If Quantity is negative, then it is short position else, it's a long position
 
+	public String getAdjacentHigherSymbol() {
+		return adjacentHigherSymbol;
+	}
+
+	public void setAdjacentHigherSymbol(String adjacentHigherSymbol) {
+		this.adjacentHigherSymbol = adjacentHigherSymbol;
+	}
+
+	public String getAdjacentLowerSymbol() {
+		return adjacentLowerSymbol;
+	}
+
+	public void setAdjacentLowerSymbol(String adjacentLowerSymbol) {
+		this.adjacentLowerSymbol = adjacentLowerSymbol;
+	}
+
 	int quantity;
+	public String symbol;
 
 	public void setQuantity(int q) {
 		this.quantity = q;
@@ -53,7 +82,7 @@ public class OptionData {
 	public void setPrice(double price) {
 		this.price = new BigDecimal(price);
 	}
-
+	
 	public String getAdjacentHigherOption(double increment) {
 		return convert(price.doubleValue() + increment);
 	}
@@ -77,5 +106,14 @@ public class OptionData {
 		} else {
 			return String.valueOf(number);
 		}
+	}
+
+
+
+	public PutCall getPutCall() {
+		if( isCall()) {
+			return OptionInstrument.PutCall.CALL;
+		}
+		return OptionInstrument.PutCall.PUT;
 	}
 }

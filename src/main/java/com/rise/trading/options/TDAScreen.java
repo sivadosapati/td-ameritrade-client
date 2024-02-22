@@ -279,7 +279,7 @@ public class TDAScreen extends JFrame {
 			int contracts = getInteger(numberOfContracts);
 			int call = getInteger(callDistance);
 			int put = getInteger(putDistance);
-			strategy.placeWeeklyTradeForPassiveIncome(accountId, Ticker.make(stockCode), call, put, contracts);
+			strategy.placeWeeklyTradeForPassiveIncome(accountId, Ticker.make(stockCode), (float)call, (float)put, contracts);
 		}
 
 		private void adjustEquityPrices() {

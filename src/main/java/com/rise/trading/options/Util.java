@@ -30,6 +30,7 @@ import java.util.TimeZone;
 import java.util.TreeMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rise.trading.options.symbols.OptionSymbolWithAdjacents;
 import com.studerw.tda.client.HttpTdaClient;
 import com.studerw.tda.model.account.ComplexOrderStrategyType;
 import com.studerw.tda.model.account.Duration;
@@ -63,7 +64,7 @@ public class Util {
 	private static HttpTdaClient httpTDAClient = null;
 
 	public static void main(String args[]) throws Exception {
-		//playWithDates();
+		// playWithDates();
 		String symbol = "SPY_021624P501";
 		Option o = findRightNearestOption(symbol);
 		System.out.println(Util.toJSON(o));
@@ -367,7 +368,7 @@ public class Util {
 		Option o = findRightNearestOption(optionSymbol);
 		System.out.println("makeSmartOptionWhenTheSymbolDoesntExist -> " + Util.toJSON(o));
 		Order oo = makeOption(o.getSymbol(), quantity, d, price, pc, type, i);
-		
+
 		return oo;
 	}
 
@@ -382,6 +383,12 @@ public class Util {
 		return req;
 	}
 
+	public static OptionChain getOptionChain(String symbol, LocalDateTime from, LocalDateTime to) {
+		OptionChainReq req = makeOptionChainRequest(symbol, from, to);
+		OptionChain chain = getHttpTDAClient().getOptionChain(req);
+		return chain;
+	}
+
 	public static Option findRightNearestOption(String os) {
 		OptionData od = OptionSymbolParser.parse(os);
 		LocalDateTime x = od.getDateTime();
@@ -394,6 +401,29 @@ public class Util {
 		} else {
 			return getPutOption(chain, price);
 		}
+	}
+
+	public static OptionSymbolWithAdjacents findOptionSymbolsWithAdjacents(String os) {
+		OptionData od = OptionSymbolParser.parse(os);
+		LocalDateTime x = od.getDateTime();
+		OptionChainReq request = makeOptionChainRequest(od.stockTicker, x, x);
+		// OptionChain chain = client.getOptionChain(stockTicker);
+		OptionChain chain = getHttpTDAClient().getOptionChain(request);
+		BigDecimal price = od.price;
+		Map map = null;
+		if (od.isCall()) {
+			map = chain.getCallExpDateMap();
+		} else {
+			map = chain.getPutExpDateMap();
+		}
+		Option high = findNearestHigherOption(price, map);
+		Option low = findNearestLowerOption(price, map);
+		if (od.isCall()) {
+			return new OptionSymbolWithAdjacents(os, high.getSymbol(), low.getSymbol());
+		} else {
+			return new OptionSymbolWithAdjacents(os, low.getSymbol(), high.getSymbol());
+		}
+
 	}
 
 	public static boolean notMarketHours() {
@@ -530,7 +560,7 @@ public class Util {
 
 	}
 
-	public static List<String> tickersThatTradeAfterHoursForOptions = Arrays.asList("QQQ", "SPY", "IWM");
+	public static List<String> tickersThatTradeAfterHoursForOptions = Arrays.asList("QQQ", "SPY");
 
 	public static boolean isLastFewMinutesOfMarketHours(String ticker) {
 		LocalDateTime ldt = LocalDateTime.now();
@@ -553,7 +583,7 @@ public class Util {
 
 	public static boolean isLastHourOfTrading() {
 		LocalDateTime ldt = LocalDateTime.now();
-		if (ldt.getHour() == 12 + HOURS_TO_ADJUST_FOR_PST) {
+		if (ldt.getHour() >= 12 + HOURS_TO_ADJUST_FOR_PST) {
 			return true;
 		}
 		return false;
@@ -596,7 +626,7 @@ public class Util {
 			return o;
 		}
 		o = findNearestHigherOption(bd, optionsMapForDifferentExpiry);
-		System.out.println(Util.toJSON(o));
+		// System.out.println(Util.toJSON(o));
 		return o;
 	}
 
@@ -621,7 +651,7 @@ public class Util {
 	public static Option findNearestHigherOption(BigDecimal bd,
 			Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry) {
 		OptionFinder of = (x, y) -> {
-			return (x.doubleValue() >= y.doubleValue());
+			return (x.doubleValue() > y.doubleValue());
 		};
 		Option o = findNearestOption(bd, optionsMapForDifferentExpiry, of, new TreeMap<Double, Option>());
 		return o;
@@ -630,7 +660,7 @@ public class Util {
 	public static Option findNearestLowerOption(BigDecimal bd,
 			Map<String, Map<BigDecimal, List<Option>>> optionsMapForDifferentExpiry) {
 		OptionFinder of = (x, y) -> {
-			return (x.doubleValue() <= y.doubleValue());
+			return (x.doubleValue() < y.doubleValue());
 		};
 		Option o = findNearestOption(bd, optionsMapForDifferentExpiry, of,
 				new TreeMap<Double, Option>(Collections.reverseOrder()));

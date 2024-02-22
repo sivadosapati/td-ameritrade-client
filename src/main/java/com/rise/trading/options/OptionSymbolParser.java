@@ -45,7 +45,10 @@ public class OptionSymbolParser {
 			String putOrCall = matcher.group(3);
 			BigDecimal price = new BigDecimal(matcher.group(4));
 
-			return new OptionData(stockTicker, date, putOrCall, price);
+			OptionData od =  new OptionData(stockTicker, date, putOrCall, price);
+			
+			od.symbol = symbol;
+			return od;
 		} else {
 			throw new IllegalArgumentException("Invalid option symbol format: " + symbol);
 		}

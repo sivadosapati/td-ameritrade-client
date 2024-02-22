@@ -266,6 +266,7 @@ public class BaseHandler {
 		// BigDecimal(gp.getNumberOfPotentialCoveredCallContracts());
 
 		OptionInstrument oi = (OptionInstrument) position.getInstrument();
+		double marketValue = position.getMarketValue().doubleValue();
 		Order order = new Order();
 		order.setOrderType(OrderType.MARKET);
 		order.setSession(Session.NORMAL);
@@ -283,6 +284,10 @@ public class BaseHandler {
 			// System.out.println("LONG " + longQuantity);
 			olc.setQuantity(new BigDecimal(longQuantity));
 			olc.setInstruction(Instruction.SELL_TO_CLOSE);
+			if (marketValue / longQuantity < 1) {
+				System.out.println("Don't close the position "+oi.getSymbol()+" as the value is less than $0.01");
+				return;
+			}
 
 		} else {
 			// order.setPrice(new BigDecimal(closingPriceForShortPosition));

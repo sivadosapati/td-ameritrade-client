@@ -31,7 +31,7 @@ class Scanner extends Thread {
 					}
 					if(counter% (60/minutes) == 0) {
 						for( String a : accountsToBeScannedEveryHour) {
-							pis.closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(a);
+							//pis.closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(a);
 						}
 					}
 				} catch (Exception e) {
