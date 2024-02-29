@@ -419,11 +419,16 @@ public class Util {
 		Option high = findNearestHigherOption(price, map);
 		Option low = findNearestLowerOption(price, map);
 		if (od.isCall()) {
-			return new OptionSymbolWithAdjacents(os, high.getSymbol(), low.getSymbol());
+			return new OptionSymbolWithAdjacents(os, getSymbol(high), getSymbol(low));
 		} else {
-			return new OptionSymbolWithAdjacents(os, low.getSymbol(), high.getSymbol());
+			return new OptionSymbolWithAdjacents(os, getSymbol(low), getSymbol(high));
 		}
 
+	}
+	
+	private static String getSymbol(Option o) {
+		if( o == null)return null;
+		return o.getSymbol();
 	}
 
 	public static boolean notMarketHours() {

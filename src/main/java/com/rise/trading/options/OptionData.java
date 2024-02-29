@@ -13,15 +13,13 @@ public class OptionData {
 	String date;
 	String putOrCall;
 	BigDecimal price;
-	
+
 	String adjacentHigherSymbol;
 	String adjacentLowerSymbol;
-	
+
 	public String getStockTicker() {
 		return stockTicker;
 	}
-	
-	
 
 	// If Quantity is negative, then it is short position else, it's a long position
 
@@ -67,6 +65,15 @@ public class OptionData {
 		}
 		return false;
 	}
+	
+	public void swapPutOrCall() {
+		if (isCall()) {
+			putOrCall = "P";
+		}
+		else {
+			putOrCall = "C";
+		}
+	}
 
 	public int getQuantity() {
 		return quantity;
@@ -82,7 +89,19 @@ public class OptionData {
 	public void setPrice(double price) {
 		this.price = new BigDecimal(price);
 	}
-	
+
+	public void adjustPriceForNextOption(double stockPrice) {
+		if (isCall()) {
+			if (stockPrice > price.doubleValue()) {
+				this.price = new BigDecimal(stockPrice);
+			}
+		} else {
+			if (stockPrice < price.doubleValue()) {
+				this.price = new BigDecimal(stockPrice);
+			}
+		}
+	}
+
 	public String getAdjacentHigherOption(double increment) {
 		return convert(price.doubleValue() + increment);
 	}
@@ -108,10 +127,8 @@ public class OptionData {
 		}
 	}
 
-
-
 	public PutCall getPutCall() {
-		if( isCall()) {
+		if (isCall()) {
 			return OptionInstrument.PutCall.CALL;
 		}
 		return OptionInstrument.PutCall.PUT;

@@ -16,6 +16,13 @@ public class OptionSymbolWithAdjacents {
 	public String toString() {
 		return adjacentLowerSymbol + " -> " + symbol + " -> " + adjacentHigherSymbol;
 	}
+	
+	public String toLine() {
+		OptionSymbolWithAdjacents x = this;
+		return x.symbol + "=" + x.adjacentLowerSymbol + "," + x.adjacentHigherSymbol;
+	}
+	
+
 
 	public String symbol;
 	public String adjacentHigherSymbol;
