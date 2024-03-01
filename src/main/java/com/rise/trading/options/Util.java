@@ -425,9 +425,10 @@ public class Util {
 		}
 
 	}
-	
+
 	private static String getSymbol(Option o) {
-		if( o == null)return null;
+		if (o == null)
+			return null;
 		return o.getSymbol();
 	}
 
@@ -584,6 +585,14 @@ public class Util {
 			return false;
 		}
 
+	}
+
+	public static boolean isTodayFriday() {
+		LocalDateTime ldt = LocalDateTime.now();
+		if (ldt.getDayOfWeek() == DayOfWeek.FRIDAY) {
+			return true;
+		}
+		return false;
 	}
 
 	public static boolean isLastHourOfTrading() {

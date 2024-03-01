@@ -559,14 +559,14 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 		return t;
 	}
 
-	private void closeSellOptionAndOpenNewOne(String accountId, Position p, Ticker ticker) {
+	protected void closeSellOptionAndOpenNewOne(String accountId, Position p, Ticker ticker) {
 		System.out.println("Closing option and opening a new one -> " + Util.toJSON(p));
 		closeOptionPositionAtMarketPrice(accountId, p);
 		openNewOptionPositionForSellCallOrPut(accountId, p, ticker);
 
 	}
 
-	private void openNewOptionPositionForSellCallOrPut(String accountId, Position p, Ticker ticker) {
+	protected void openNewOptionPositionForSellCallOrPut(String accountId, Position p, Ticker ticker) {
 		OptionInstrument oi = (OptionInstrument) p.getInstrument();
 		int shortQuantity = p.getShortQuantity().intValue();
 		if (shortQuantity > 0) {
@@ -578,7 +578,7 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 	protected boolean shouldPlaceTradeForNextDayOrWeekOptions(Ticker ticker) {
 		return Util.isLastHourOfTrading();
 	}
-	private void openNewOptionPositionForSellCallOrPut(String accountId, Ticker ticker, int shortQuantity,
+	protected void openNewOptionPositionForSellCallOrPut(String accountId, Ticker ticker, int shortQuantity,
 			OptionInstrument.PutCall opc) {
 
 		if (opc == OptionInstrument.PutCall.CALL) {
