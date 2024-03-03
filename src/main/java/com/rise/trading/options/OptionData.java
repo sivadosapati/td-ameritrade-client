@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.TreeSet;
 
 import com.studerw.tda.model.account.OptionInstrument;
 import com.studerw.tda.model.account.OptionInstrument.PutCall;
@@ -16,6 +17,9 @@ public class OptionData {
 
 	String adjacentHigherSymbol;
 	String adjacentLowerSymbol;
+
+	int quantity;
+	public String symbol;
 
 	public String getStockTicker() {
 		return stockTicker;
@@ -38,9 +42,6 @@ public class OptionData {
 	public void setAdjacentLowerSymbol(String adjacentLowerSymbol) {
 		this.adjacentLowerSymbol = adjacentLowerSymbol;
 	}
-
-	int quantity;
-	public String symbol;
 
 	public void setQuantity(int q) {
 		this.quantity = q;
@@ -65,12 +66,11 @@ public class OptionData {
 		}
 		return false;
 	}
-	
+
 	public void swapPutOrCall() {
 		if (isCall()) {
 			putOrCall = "P";
-		}
-		else {
+		} else {
 			putOrCall = "C";
 		}
 	}
@@ -132,5 +132,43 @@ public class OptionData {
 			return OptionInstrument.PutCall.CALL;
 		}
 		return OptionInstrument.PutCall.PUT;
+	}
+
+	public String makePossibleProtectionLongOption(Double currentStockPrice, double percentageDeviation) {
+		double p = findPickableStockPrice(currentStockPrice, percentageDeviation);
+		String s = convert(p);
+		return s;
+
+	}
+
+	private Double findPickableStockPrice(double currentStockPrice, double percentageDeviation) {
+		double sp = this.price.doubleValue();
+		double pick = 0;
+		if (isCall()) {
+			if (currentStockPrice >= sp) {
+				pick =  currentStockPrice;
+			} else {
+				pick =  sp;
+			}
+			return pick * (100 + percentageDeviation)/100d;
+		} else {
+			if (currentStockPrice <= sp) {
+				pick= currentStockPrice;
+			} else {
+				pick= sp;
+			}
+			return pick * (100 - percentageDeviation)/100d;
+		}
+	}
+
+	public void adjustPriceFromPricesMap(TreeSet<Double> prices) {
+		Double p = null;
+		if (isCall()) {
+			p = prices.last();
+		} else {
+			p = prices.first();
+		}
+		this.price = new BigDecimal(p);
+
 	}
 }

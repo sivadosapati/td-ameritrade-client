@@ -57,7 +57,7 @@ public class Util {
 
 	// Tweak this when we are in different time zone, FOR EST, this number should be
 	// 3, for CST, it should be 2
-	public static int HOURS_TO_ADJUST_FOR_PST = 0;
+	public static int HOURS_TO_ADJUST_FOR_PST = 3;
 
 	private static Properties props = fetchProperties();
 	private static Accounts accounts = fetchAccounts();
@@ -705,6 +705,36 @@ public class Util {
 
 	interface OptionFinder {
 		boolean match(BigDecimal optionPrice, BigDecimal price);
+	}
+
+	public static boolean canOptionsBeTradedNow() {
+		LocalDate date = LocalDate.now();
+		if (date.getDayOfWeek() == DayOfWeek.SATURDAY) {
+			return false;
+
+		}
+		if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
+			return false;
+		}
+		LocalTime time = LocalTime.now();
+
+		if (time.getHour() < 6 + HOURS_TO_ADJUST_FOR_PST) {
+			return false;
+		}
+		if (time.getHour() == 6 + HOURS_TO_ADJUST_FOR_PST) {
+			if (time.getMinute() >= 30) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+		if (time.getHour() > 13 + HOURS_TO_ADJUST_FOR_PST) {
+			return false;
+			
+		}
+
+		return true;
+
 	}
 
 }

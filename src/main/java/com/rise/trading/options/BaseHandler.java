@@ -261,7 +261,7 @@ public class BaseHandler {
 
 	List<String> tickersThatTradeAfterHoursForOptions = Arrays.asList("QQQ", "SPY", "IWM");
 
-	public void closeOptionPositionAtMarketPrice(String accountId, Position position) {
+	public void closeOptionPositionAtMarketPrice(String accountId, Position position, PassiveIncomeOptionProcessorInput input) {
 		// BigDecimal callQuantity = new
 		// BigDecimal(gp.getNumberOfPotentialCoveredCallContracts());
 
