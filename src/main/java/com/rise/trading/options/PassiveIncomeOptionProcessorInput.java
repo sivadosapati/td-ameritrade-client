@@ -10,6 +10,9 @@ public class PassiveIncomeOptionProcessorInput {
 	public String ticker;
 	public OptionPositions optionPositions;
 	
+	private OptionData optionData = null;
+	
+	
 	public static PassiveIncomeOptionProcessorInput make(Position p, String accountId, String ticker, double stockPrice, OptionPositions op) {
 		PassiveIncomeOptionProcessorInput xx = new PassiveIncomeOptionProcessorInput();
 		xx.position = p;
@@ -19,5 +22,16 @@ public class PassiveIncomeOptionProcessorInput {
 		xx.optionPositions = op;
 		return xx;
 	}
+	
+	public OptionData getOptionData() {
+		if( optionData == null) {
+			optionData = OptionSymbolParser.parse(position);
+		}
+		return optionData;
+	}
+	
+	
+	
+	
 
 }

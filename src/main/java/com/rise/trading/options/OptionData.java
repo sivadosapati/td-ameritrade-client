@@ -25,6 +25,11 @@ public class OptionData {
 		return stockTicker;
 	}
 
+	public String getKeyWithoutStrikePrice() {
+		OptionData x = this;
+		return x.stockTicker + "_" + x.date + x.putOrCall;
+	}
+
 	// If Quantity is negative, then it is short position else, it's a long position
 
 	public String getAdjacentHigherSymbol() {
@@ -142,23 +147,7 @@ public class OptionData {
 	}
 
 	private Double findPickableStockPrice(double currentStockPrice, double percentageDeviation) {
-		double sp = this.price.doubleValue();
-		double pick = 0;
-		if (isCall()) {
-			if (currentStockPrice >= sp) {
-				pick =  currentStockPrice;
-			} else {
-				pick =  sp;
-			}
-			return pick * (100 + percentageDeviation)/100d;
-		} else {
-			if (currentStockPrice <= sp) {
-				pick= currentStockPrice;
-			} else {
-				pick= sp;
-			}
-			return pick * (100 - percentageDeviation)/100d;
-		}
+		return Util.findPickableStockPrice(currentStockPrice, this.price.doubleValue(), isCall(), percentageDeviation);
 	}
 
 	public void adjustPriceFromPricesMap(TreeSet<Double> prices) {
@@ -170,5 +159,9 @@ public class OptionData {
 		}
 		this.price = new BigDecimal(p);
 
+	}
+
+	public BigDecimal getPrice() {
+		return price;
 	}
 }

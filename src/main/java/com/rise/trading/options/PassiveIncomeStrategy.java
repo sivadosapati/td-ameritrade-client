@@ -242,6 +242,13 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 	class OptionPositions {
 		// List<OptionData> options = new ArrayList<OptionData>();
 		Map<String, OptionData> optionDataMap = new HashMap<String, OptionData>();
+		
+		Map<String, Integer> optionsWithNetShortAndLong = null;
+		
+		public int getOptionsWithNetShortAndLong(OptionData od) {
+			String symbol = od.getKeyWithoutStrikePrice();
+			return optionsWithNetShortAndLong.get(symbol);
+		}
 
 		public String getAdjacentHigherSymbol(String optionSymbol) {
 			OptionData od = getOptionData(optionSymbol);
@@ -279,7 +286,7 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 			Map<String, Integer> optionData = new HashMap<String, Integer>();
 			Map<String, TreeSet<Double>> maxPriceMap = new HashMap<String, TreeSet<Double>>();
 			for (OptionData x : optionDataMap.values()) {
-				String keyWithoutStrikePrice = x.stockTicker + "_" + x.date + x.putOrCall;
+				String keyWithoutStrikePrice = x.getKeyWithoutStrikePrice();
 				Integer i = optionData.get(keyWithoutStrikePrice);
 				if (i == null) {
 					i = 0;
@@ -297,6 +304,7 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 				}
 
 			}
+			this.optionsWithNetShortAndLong = optionData;
 			// System.out.println(optionData);
 			List<OptionData> optionsWithNoProtection = new ArrayList<OptionData>();
 			for (String k : optionData.keySet()) {
@@ -417,7 +425,16 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 	}
 
 	protected double getPotentialProfitMarketValueForLongPositions(int longQuantity, Position p) {
-		return longQuantity * p.getAveragePrice().doubleValue() * 2.5 * 100;
+		double v = p.getAveragePrice().doubleValue();
+		if (v < 0.10d) {
+			return longQuantity * v * 10 * 100;
+		}
+		
+		return longQuantity * v * longGain() * 100;
+	}
+	
+	protected double longGain() {
+		return 2.5d;
 	}
 
 	protected double getPotentialProfitValueForShortPosition(int shortQuantity, Position p) {
@@ -539,9 +556,9 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 		String o = null;
 
 		if (pop.od.isCall()) {
-			o = pop.od.getAdjacentHigherOption(getAdjacentWidthForHigherOption());
+			o = pop.od.getAdjacentHigherOption(getAdjacentWidthForHigherOption(input));
 		} else {
-			o = pop.od.getAdjacentLowerOption(getAdjacentWidthForLowerOption());
+			o = pop.od.getAdjacentLowerOption(getAdjacentWidthForLowerOption(input));
 		}
 		placeNextSmartLongOptionOrder(accountId, o, getQuantity(shortQuantity, longQuantity), oi.getPutCall());
 
@@ -549,8 +566,9 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 
 	protected void placeNextSmartLongOptionOrder(String accountId, String symbol, int quantity,
 			OptionInstrument.PutCall pc) {
-		if(!Util.canOptionsBeTradedNow()) {
-			System.out.println("This is not market hours for trading options and I can't place market orders -> "+accountId+" -> "+symbol+" -> "+quantity);
+		if (!Util.canOptionsBeTradedNow()) {
+			System.out.println("This is not market hours for trading options and I can't place market orders -> "
+					+ accountId + " -> " + symbol + " -> " + quantity);
 			return;
 		}
 		Order order = null;
@@ -567,12 +585,19 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 		}
 	}
 
-	public int getAdjacentWidthForHigherOption() {
-		return 25;
+	public int getAdjacentWidthForHigherOption(PassiveIncomeOptionProcessorInput input) {
+		OptionData od = input.getOptionData();
+		double pick = Util.findPickableStockPrice(input.currentStockPrice, od.getPrice().doubleValue(), od.isCall(),
+				10);
+		return (int) (pick - input.currentStockPrice);
 	}
 
-	public int getAdjacentWidthForLowerOption() {
-		return 25;
+	public int getAdjacentWidthForLowerOption(PassiveIncomeOptionProcessorInput input) {
+		OptionData od = input.getOptionData();
+		double pick = Util.findPickableStockPrice(input.currentStockPrice, od.getPrice().doubleValue(), od.isPut(),
+				5);
+		return Math.abs((int) (input.currentStockPrice - pick));
+
 	}
 
 	private void placeProtectionLongOrder(String accountId, String symbol, OptionInstrument.PutCall pc, int quantity) {
@@ -649,11 +674,15 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 
 	}
 
-	private int getQuantity(int s, int l) {
+	protected int getQuantity(int s, int l) { 
 		if (s > 0) {
 			return s;
 		}
-		return l;
+		return l + getQuantityIncrement();
+	}
+	
+	protected int getQuantityIncrement() {
+		return 1;
 	}
 
 	protected PossibleOptionAndProfit isOptionInProfit(double marketValue, double potentialProfitMarketValue,
@@ -1430,9 +1459,9 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 			// String o = pop.od.getAdjacentHigherOption(25);
 
 			if (pop.od.isCall()) {
-				o = pop.od.getAdjacentHigherOption(getAdjacentWidthForHigherOption());
+				o = pop.od.getAdjacentHigherOption(getAdjacentWidthForHigherOption(input));
 			} else {
-				o = pop.od.getAdjacentLowerOption(getAdjacentWidthForLowerOption());
+				o = pop.od.getAdjacentLowerOption(getAdjacentWidthForLowerOption(input));
 			}
 			order = Util.makeOption(o, getQuantity(shortQuantity, longQuantity), Duration.DAY, null, oi.getPutCall(),
 					OrderType.MARKET, pop.instruction);

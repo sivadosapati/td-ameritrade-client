@@ -73,6 +73,26 @@ public class Util {
 	public static String getEODToken() {
 		return props.getProperty("eod.api.token");
 	}
+	
+	public static double findPickableStockPrice(double currentStockPrice, double optionStrikePrice, boolean isCall, double percentageDeviation) {
+		double sp = optionStrikePrice;
+		double pick = 0;
+		if (isCall) {
+			if (currentStockPrice >= sp) {
+				pick =  currentStockPrice;
+			} else {
+				pick =  sp;
+			}
+			return pick * (100 + percentageDeviation)/100d;
+		} else {
+			if (currentStockPrice <= sp) {
+				pick= currentStockPrice;
+			} else {
+				pick= sp;
+			}
+			return pick * (100 - percentageDeviation)/100d;
+		}
+	}
 
 	public static double getLatestTickerPrice(String symbol) {
 		return getPrice(getHttpTDAClient().fetchQuote(symbol));
