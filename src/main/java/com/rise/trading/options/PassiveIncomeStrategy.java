@@ -682,7 +682,8 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 	}
 	
 	protected int getQuantityIncrement() {
-		return 1;
+		//return 1;
+		return 0;
 	}
 
 	protected PossibleOptionAndProfit isOptionInProfit(double marketValue, double potentialProfitMarketValue,

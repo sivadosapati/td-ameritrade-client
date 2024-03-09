@@ -57,7 +57,7 @@ public class Util {
 
 	// Tweak this when we are in different time zone, FOR EST, this number should be
 	// 3, for CST, it should be 2
-	public static int HOURS_TO_ADJUST_FOR_PST = 3;
+	public static int HOURS_TO_ADJUST_FOR_PST = 0;
 
 	private static Properties props = fetchProperties();
 	private static Accounts accounts = fetchAccounts();
