@@ -1,6 +1,7 @@
 package com.rise.trading.options;
 
 import com.studerw.tda.model.account.OptionInstrument;
+import com.studerw.tda.model.account.OptionInstrument.PutCall;
 import com.studerw.tda.model.account.Position;
 
 public class PassiveIncomeLongStrategy extends PassiveIncomeStrategy {
@@ -61,12 +62,19 @@ public class PassiveIncomeLongStrategy extends PassiveIncomeStrategy {
 		int maxShortOptions = input.optionPositions.getOptionsWithNetShortAndLong(od);
 		if (maxShortOptions <= MAX_SHORT_POSITIONS) {
 			System.out.println("openNewOptionPositionForSellCallOrPut -> " + maxShortOptions);
-			super.openNewOptionPositionForSellCallOrPut(accountId, ticker, shortQuantity, opc, input);
+			placeNewOptionPositionForSellCallOrput(accountId, ticker, shortQuantity, opc, input);
+			
 		} else {
 			System.out.println("openNewOptionPositionForSellCallOrPut -> Already reached MAX_SHORT_POSITIONS -> "
 					+ maxShortOptions);
 		}
 
+	}
+
+	private void placeNewOptionPositionForSellCallOrput(String accountId, Ticker ticker, int shortQuantity, PutCall opc,
+			PassiveIncomeOptionProcessorInput input) {
+		super.openNewOptionPositionForSellCallOrPut(accountId, ticker, shortQuantity, opc, input);
+		
 	}
 
 	@Override

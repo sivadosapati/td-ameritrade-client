@@ -10,13 +10,13 @@ import com.studerw.tda.model.account.OptionInstrument;
 import com.studerw.tda.model.account.OptionInstrument.PutCall;
 
 public class OptionData {
-	String stockTicker;
-	String date;
-	String putOrCall;
-	BigDecimal price;
+	public String stockTicker;
+	public String date;
+	public String putOrCall;
+	public BigDecimal price;
 
-	String adjacentHigherSymbol;
-	String adjacentLowerSymbol;
+	public String adjacentHigherSymbol;
+	public String adjacentLowerSymbol;
 
 	int quantity;
 	public String symbol;
@@ -115,22 +115,24 @@ public class OptionData {
 		return convert(price.doubleValue() - decrement);
 	}
 
+	public String createOptionSymbolForPrice(double x) {
+		if (isCall()) {
+			x = Math.ceil(x);
+		}
+		else {
+			x = Math.floor(x);
+		}
+		return convert(x);
+	}
 	private String convert(double x) {
-		return stockTicker + "_" + date + putOrCall + convertDecimalToString(x);
+		return stockTicker + "_" + date + putOrCall + Util.convertDecimalToString(x);
 	}
 
 	public String toString() {
 		return convert(price.doubleValue()) + " : " + quantity;
 	}
 
-	public static String convertDecimalToString(double number) {
-		// Check if the number has no decimal part
-		if (number == (int) number) {
-			return String.valueOf((int) number);
-		} else {
-			return String.valueOf(number);
-		}
-	}
+	
 
 	public PutCall getPutCall() {
 		if (isCall()) {

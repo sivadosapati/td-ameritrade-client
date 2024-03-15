@@ -73,24 +73,25 @@ public class Util {
 	public static String getEODToken() {
 		return props.getProperty("eod.api.token");
 	}
-	
-	public static double findPickableStockPrice(double currentStockPrice, double optionStrikePrice, boolean isCall, double percentageDeviation) {
+
+	public static double findPickableStockPrice(double currentStockPrice, double optionStrikePrice, boolean isCall,
+			double percentageDeviation) {
 		double sp = optionStrikePrice;
 		double pick = 0;
 		if (isCall) {
 			if (currentStockPrice >= sp) {
-				pick =  currentStockPrice;
+				pick = currentStockPrice;
 			} else {
-				pick =  sp;
+				pick = sp;
 			}
-			return pick * (100 + percentageDeviation)/100d;
+			return pick * (100 + percentageDeviation) / 100d;
 		} else {
 			if (currentStockPrice <= sp) {
-				pick= currentStockPrice;
+				pick = currentStockPrice;
 			} else {
-				pick= sp;
+				pick = sp;
 			}
-			return pick * (100 - percentageDeviation)/100d;
+			return pick * (100 - percentageDeviation) / 100d;
 		}
 	}
 
@@ -152,6 +153,15 @@ public class Util {
 		d = new Date(946713600 * 1000);
 		System.out.println(d);
 
+	}
+
+	public static String convertDecimalToString(double number) {
+		// Check if the number has no decimal part
+		if (number == (int) number) {
+			return String.valueOf((int) number);
+		} else {
+			return String.valueOf(number);
+		}
 	}
 
 	public static List<String> readLinesFromURL(String url) {
@@ -384,8 +394,8 @@ public class Util {
 
 	public static Order makeSmartOptionWhenTheSymbolDoesntExist(String optionSymbol, int quantity, Duration d,
 			Double price, OptionInstrument.PutCall pc, OrderType type, Instruction i) {
-
-		Option o = findRightNearestOption(optionSymbol);
+		Option o = null;
+		o = findRightNearestOption(optionSymbol);
 		System.out.println("makeSmartOptionWhenTheSymbolDoesntExist -> " + Util.toJSON(o));
 		Order oo = makeOption(o.getSymbol(), quantity, d, price, pc, type, i);
 
@@ -616,8 +626,12 @@ public class Util {
 	}
 
 	public static boolean isLastHourOfTrading() {
+		return isLastFewHoursOfTrading(1);
+	}
+	
+	public static boolean isLastFewHoursOfTrading(int number) {
 		LocalDateTime ldt = LocalDateTime.now();
-		if (ldt.getHour() >= 12 + HOURS_TO_ADJUST_FOR_PST) {
+		if (ldt.getHour() >= 13 + HOURS_TO_ADJUST_FOR_PST - number) {
 			return true;
 		}
 		return false;
@@ -750,7 +764,7 @@ public class Util {
 		}
 		if (time.getHour() > 13 + HOURS_TO_ADJUST_FOR_PST) {
 			return false;
-			
+
 		}
 
 		return true;
