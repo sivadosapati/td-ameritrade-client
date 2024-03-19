@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 
 import com.studerw.tda.client.HttpTdaClient;
@@ -104,6 +106,18 @@ public class BaseHandler {
 		GroupedPositions gp = new GroupedPositions(positions);
 		return gp;
 
+	}
+
+	public GroupedPositions getGroupedPositionsWithCurrentStockPrice(String accountId) {
+		GroupedPositions gps = getGroupedPositions(accountId);
+		Set<String> tickers = gps.findTradeableSymbols();
+		Map<String, Double> prices = Util.getLatestTickerPrices(tickers);
+		for (Map.Entry<String, Double> e : prices.entrySet()) {
+			GroupedPosition gp = gps.getGroupedPosition(e.getKey());
+			gp.setCurrentStockPrice(e.getValue());
+
+		}
+		return gps;
 	}
 
 	public List<Order> getCurrentWorkingOrders(String accountId) {
@@ -261,7 +275,8 @@ public class BaseHandler {
 
 	List<String> tickersThatTradeAfterHoursForOptions = Arrays.asList("QQQ", "SPY", "IWM");
 
-	public void closeOptionPositionAtMarketPrice(String accountId, Position position, PassiveIncomeOptionProcessorInput input) {
+	public void closeOptionPositionAtMarketPrice(String accountId, Position position,
+			PassiveIncomeOptionProcessorInput input) {
 		// BigDecimal callQuantity = new
 		// BigDecimal(gp.getNumberOfPotentialCoveredCallContracts());
 
@@ -285,7 +300,7 @@ public class BaseHandler {
 			olc.setQuantity(new BigDecimal(longQuantity));
 			olc.setInstruction(Instruction.SELL_TO_CLOSE);
 			if (marketValue / longQuantity < 1) {
-				System.out.println("Don't close the position "+oi.getSymbol()+" as the value is less than $0.01");
+				System.out.println("Don't close the position " + oi.getSymbol() + " as the value is less than $0.01");
 				return;
 			}
 

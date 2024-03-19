@@ -65,8 +65,9 @@ public class Util {
 
 	public static void main(String args[]) throws Exception {
 		// playWithDates();
-		String symbol = "SPY_021624P501";
-		Option o = findRightNearestOption(symbol);
+		String symbol = "SPY_031924C520.5";
+		//Option o = findRightNearestOption(symbol);
+		Order o = makeOption(symbol, 1, Duration.GOOD_TILL_CANCEL, null, OptionInstrument.PutCall.PUT, OrderType.MARKET, Instruction.SELL_TO_OPEN);
 		System.out.println(Util.toJSON(o));
 	}
 
@@ -347,9 +348,20 @@ public class Util {
 
 		return o;
 	}
+	
+	
 
 	public static Order makeOption(String optionSymbol, int quantity, Duration d, Double price,
 			OptionInstrument.PutCall pc, OrderType type, Instruction i) {
+
+		if (i == Instruction.SELL_TO_OPEN && type == OrderType.MARKET) {
+			Option oo = findRightNearestOption(optionSymbol);
+			double pp = oo.getLastPrice().doubleValue();
+			if (pp < 0.10d) {
+				throw new RuntimeException(oo.getSymbol() + "'s price is " + pp
+						+ " and is less than 0.10. There is no value in placing an order");
+			}
+		}
 		Order o = new Order();
 		o.setSession(Session.NORMAL);
 		o.setComplexOrderStrategyType(ComplexOrderStrategyType.NONE);
@@ -628,13 +640,46 @@ public class Util {
 	public static boolean isLastHourOfTrading() {
 		return isLastFewHoursOfTrading(1);
 	}
-	
+
 	public static boolean isLastFewHoursOfTrading(int number) {
+		if (!isMarketOpenForTrading()) {
+			return false;
+		}
 		LocalDateTime ldt = LocalDateTime.now();
-		if (ldt.getHour() >= 13 + HOURS_TO_ADJUST_FOR_PST - number) {
+		int hour = 13 + HOURS_TO_ADJUST_FOR_PST;
+		if (ldt.getHour() >= hour - number && ldt.getHour() <= hour) {
 			return true;
 		}
 		return false;
+	}
+
+	public static boolean isMarketOpenForTrading() {
+		LocalDate date = LocalDate.now();
+		if (date.getDayOfWeek() == DayOfWeek.SATURDAY) {
+			return false;
+
+		}
+		if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
+			return false;
+		}
+		LocalTime time = LocalTime.now();
+
+		if (time.getHour() < 6 + HOURS_TO_ADJUST_FOR_PST) {
+			return false;
+		}
+		if (time.getHour() == 6 + HOURS_TO_ADJUST_FOR_PST) {
+			if (time.getMinute() >= 30) {
+				return true;
+			} else {
+				return false;
+			}
+		}
+		if (time.getHour() >= 13 + HOURS_TO_ADJUST_FOR_PST) {
+			return false;
+
+		}
+
+		return true;
 	}
 
 	public static Integer findDaysToExpiration() {
@@ -650,7 +695,7 @@ public class Util {
 
 		// System.out.println(time.getHour());
 		// After 12 PM - pick the next day
-		if (time.getHour() > 13 + HOURS_TO_ADJUST_FOR_PST) {
+		if (time.getHour() >= 13 + HOURS_TO_ADJUST_FOR_PST) {
 			return 1;
 		}
 		return 0;
@@ -742,32 +787,7 @@ public class Util {
 	}
 
 	public static boolean canOptionsBeTradedNow() {
-		LocalDate date = LocalDate.now();
-		if (date.getDayOfWeek() == DayOfWeek.SATURDAY) {
-			return false;
-
-		}
-		if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
-			return false;
-		}
-		LocalTime time = LocalTime.now();
-
-		if (time.getHour() < 6 + HOURS_TO_ADJUST_FOR_PST) {
-			return false;
-		}
-		if (time.getHour() == 6 + HOURS_TO_ADJUST_FOR_PST) {
-			if (time.getMinute() >= 30) {
-				return true;
-			} else {
-				return false;
-			}
-		}
-		if (time.getHour() > 13 + HOURS_TO_ADJUST_FOR_PST) {
-			return false;
-
-		}
-
-		return true;
+		return isMarketOpenForTrading();
 
 	}
 

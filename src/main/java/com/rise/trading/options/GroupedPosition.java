@@ -12,6 +12,15 @@ public class GroupedPosition {
 	private List<Position> options = new ArrayList<Position>();
 	private Position shortEquity;
 	
+	private Double currentStockPrice;
+	public void setCurrentStockPrice(Double x) {
+		this.currentStockPrice = x;
+		
+	}
+	public Double getCurrentStockPrice() {
+		return currentStockPrice;
+	}
+	
 	public Position getCash() {
 		return cash;
 	}

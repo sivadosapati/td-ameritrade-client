@@ -2,6 +2,7 @@ package com.rise.trading.options;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,10 +34,9 @@ public class GroupedPositions {
 				groupedPositions.put(symbol, group);
 			}
 			if (i instanceof EquityInstrument) {
-				if( p.getShortQuantity().doubleValue() > 0.0d) {
+				if (p.getShortQuantity().doubleValue() > 0.0d) {
 					group.setShortEquity(p);
-				}
-				else {
+				} else {
 					group.setEquity(p);
 				}
 			}
@@ -51,6 +51,15 @@ public class GroupedPositions {
 
 	public Set<String> getSymbols() {
 		return groupedPositions.keySet();
+	}
+
+	public Set<String> findTradeableSymbols() {
+		Set<String> symbols = new HashSet<String>(getSymbols());
+
+		// Cash Component
+		symbols.remove("MMDA1");
+
+		return symbols;
 	}
 
 	public String toString() {

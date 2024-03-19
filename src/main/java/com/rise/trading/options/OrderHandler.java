@@ -27,7 +27,9 @@ import com.studerw.tda.model.option.OptionChainReq.Range;
 public class OrderHandler extends BaseHandler {
 
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
+		OptionChain oc = Util.getHttpTDAClient().getOptionChain("SOLO");
+		System.out.println(oc);
+		
 
 	}
 

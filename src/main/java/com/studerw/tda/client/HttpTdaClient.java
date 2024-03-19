@@ -361,6 +361,9 @@ public class HttpTdaClient implements TdaClient {
 		if (StringUtils.isBlank(accountId)) {
 			throw new IllegalArgumentException("accountId cannot be blank.");
 		}
+		if( order == null) {
+			LOGGER.warn("Order is null");
+		}
 
 		HttpUrl url = baseUrl("accounts", accountId, "orders").build();
 
