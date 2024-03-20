@@ -66,9 +66,21 @@ public class Util {
 	public static void main(String args[]) throws Exception {
 		// playWithDates();
 		String symbol = "SPY_031924C520.5";
-		//Option o = findRightNearestOption(symbol);
-		Order o = makeOption(symbol, 1, Duration.GOOD_TILL_CANCEL, null, OptionInstrument.PutCall.PUT, OrderType.MARKET, Instruction.SELL_TO_OPEN);
+		// Option o = findRightNearestOption(symbol);
+		Order o = makeOption(symbol, 1, Duration.GOOD_TILL_CANCEL, null, OptionInstrument.PutCall.PUT, OrderType.MARKET,
+				Instruction.SELL_TO_OPEN);
 		System.out.println(Util.toJSON(o));
+	}
+
+	static String[] kidsAccounts = new String[]{ Util.getAccountId2(), Util.getAccountId3(), Util.getAccountId4() };
+	
+	public static boolean canAccountBeUsedForSellingEquities(String accountId) {
+		for (String a : kidsAccounts) {
+			if (accountId.equals(a)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	public static String getEODToken() {
@@ -348,8 +360,6 @@ public class Util {
 
 		return o;
 	}
-	
-	
 
 	public static Order makeOption(String optionSymbol, int quantity, Duration d, Double price,
 			OptionInstrument.PutCall pc, OrderType type, Instruction i) {
@@ -611,6 +621,18 @@ public class Util {
 	public static List<String> tickersThatTradeAfterHoursForOptions = Arrays.asList("QQQ", "SPY");
 
 	public static boolean isLastFewMinutesOfMarketHours(String ticker) {
+		LocalDateTime ldt = LocalDateTime.now();
+		int hour = ldt.getHour();
+		int min = ldt.getMinute();
+
+		if (hour == 12 + HOURS_TO_ADJUST_FOR_PST && min >= 45) {
+			return true;
+		}
+		return false;
+
+	}
+
+	public static boolean isLastFewMinutesOfMarketHoursOld(String ticker) {
 		LocalDateTime ldt = LocalDateTime.now();
 		int hour = ldt.getHour();
 		int min = ldt.getMinute();

@@ -11,16 +11,18 @@ public class GroupedPosition {
 	private Position cash;
 	private List<Position> options = new ArrayList<Position>();
 	private Position shortEquity;
-	
+
 	private Double currentStockPrice;
+
 	public void setCurrentStockPrice(Double x) {
 		this.currentStockPrice = x;
-		
+
 	}
+
 	public Double getCurrentStockPrice() {
 		return currentStockPrice;
 	}
-	
+
 	public Position getCash() {
 		return cash;
 	}
@@ -28,6 +30,7 @@ public class GroupedPosition {
 	public void setCash(Position c) {
 		this.cash = c;
 	}
+
 	public List<Position> getOptions() {
 		return options;
 	}
@@ -49,14 +52,24 @@ public class GroupedPosition {
 		return potentialCallContracts;
 	}
 
+	public int getNumberOfPotentialCoveredPutContracts() {
+		if (shortEquity == null) {
+			return 0;
+		}
+		int x = (int) (shortEquity.getShortQuantity().doubleValue() / 100);
+
+		return x;
+	}
+
 	public String getSymbol() {
 		return symbol;
 	}
 
 	public void setEquity(Position p) {
 		this.equity = p;
-		
+
 	}
+
 	public void setShortEquity(Position p) {
 		this.shortEquity = p;
 	}
@@ -64,9 +77,10 @@ public class GroupedPosition {
 	public Position getShortEquity() {
 		return shortEquity;
 	}
+
 	public void addOption(Position p) {
 		options.add(p);
-		
+
 	}
 
 	public Position getEquity() {

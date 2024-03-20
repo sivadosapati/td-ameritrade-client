@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -24,8 +25,6 @@ import com.studerw.tda.model.account.OrderLegCollection.Instruction;
 import com.studerw.tda.model.account.OrderStrategyType;
 import com.studerw.tda.model.account.OrderType;
 import com.studerw.tda.model.account.Position;
-import com.studerw.tda.model.quote.EquityQuote;
-import com.studerw.tda.model.quote.EtfQuote;
 import com.studerw.tda.model.quote.Quote;
 
 public class OrderTests extends BaseHandler {
@@ -46,39 +45,40 @@ public class OrderTests extends BaseHandler {
 		placeOrdersForOptionsExpiringToday(getAccountId1());
 	}
 
-	public static void mainOld(String args[]) throws Exception {
+	public static void main(String args[]) throws Exception {
 		String account = Util.getAccountId6();
-		Order x = Util.makeOption("UNG_122723P5", 1, Duration.GOOD_TILL_CANCEL, 0.02d, OptionInstrument.PutCall.PUT,
+		Order x = Util.makeOption("SPY_031924P490", 1, Duration.GOOD_TILL_CANCEL, 0.05d, OptionInstrument.PutCall.PUT,
 				OrderType.LIMIT, Instruction.BUY_TO_OPEN);
-		Date d = getReleaseTime();
+		// Date d = getReleaseTime();
 		LocalDate ld = getCancelTime();
 		x.setCancelTime(ld);
-		x.setCancelable(true);
-		x.setEditable(true);
-		x.setReleaseTime(getReleaseTime());
+		//x.setCancelable(true);
+		//x.setEditable(true);
+		//x.setReleaseTime(getReleaseTime());
 		getHttpTDAClient().placeOrder(account, x);
-		
+
 		fetchOrders(account);
 	}
 
-	public static void main(String args[]) {
+	public static void mainxxxx(String args[]) {
 		String stock = "IWM";
 		Quote quote = Util.getHttpTDAClient().fetchQuote(stock);
 		double price = Util.getPrice(quote);
-		System.out.println(price);		
+		System.out.println(price);
 	}
+
 	public static void main1234(String args[]) {
 		String stock = "IWM";
 		Quote quote = Util.getHttpTDAClient().fetchQuote(stock);
 		double price = Util.getPrice(quote);
 		System.out.println(price);
 		Order order = Util.makeOrderForBuyingStockAtLimitPrice(stock, price + 0.01d, 1);
-		//getHttpTDAClient().placeOrder(Util.getAccountId1(), order);
-		
-		//getHttpTDAClient().pla
-		
+		// getHttpTDAClient().placeOrder(Util.getAccountId1(), order);
+
+		// getHttpTDAClient().pla
+
 		List<Order> orders = new OrderTests().getCurrentWorkingOrders(Util.getAccountId1());
-		for( Order o : orders) {
+		for (Order o : orders) {
 			System.out.println(Util.toJSON(o));
 		}
 	}
@@ -97,8 +97,9 @@ public class OrderTests extends BaseHandler {
 	}
 
 	private static LocalDate getCancelTime() {
-		LocalDate ld = LocalDate.of(2023, 12, 27);
-		return ld;
+		LocalDateTime time = java.time.LocalDateTime.now();
+		return time.plusDays(1).toLocalDate();
+
 	}
 
 	public static void mainaaaa(String args[]) throws Exception {

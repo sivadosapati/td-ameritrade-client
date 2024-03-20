@@ -4,7 +4,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.TreeSet;
+
+import org.joda.time.Days;
 
 import com.studerw.tda.model.account.OptionInstrument;
 import com.studerw.tda.model.account.OptionInstrument.PutCall;
@@ -20,14 +23,28 @@ public class OptionData {
 
 	int quantity;
 	public String symbol;
+	
+	public static void main(String args[]) {
+		OptionData od = OptionSymbolParser.parse("SPY_031924P210");
+		System.out.println(od.getDaysToExpiry());
+	}
 
 	public String getStockTicker() {
 		return stockTicker;
 	}
 
+	public String getDate() {
+		return date;
+	}
+
 	public String getKeyWithoutStrikePrice() {
 		OptionData x = this;
 		return x.stockTicker + "_" + x.date + x.putOrCall;
+	}
+
+	public String getOppositeKeyWithoutStrikePrice() {
+		OptionData x = this;
+		return x.stockTicker + "_" + x.date + getReversePutOrCall();
 	}
 
 	// If Quantity is negative, then it is short position else, it's a long position
@@ -80,6 +97,24 @@ public class OptionData {
 		}
 	}
 
+	public String getPutOrCall() {
+		return this.putOrCall;
+	}
+
+	public String getReversePutOrCall() {
+		if (this.putOrCall.equals("P")) {
+			return "C";
+		}
+		return "P";
+	}
+
+	public String getPutOrCall(boolean isCall) {
+		if (isCall) {
+			return "C";
+		}
+		return "P";
+	}
+
 	public int getQuantity() {
 		return quantity;
 	}
@@ -118,12 +153,12 @@ public class OptionData {
 	public String createOptionSymbolForPrice(double x) {
 		if (isCall()) {
 			x = Math.ceil(x);
-		}
-		else {
+		} else {
 			x = Math.floor(x);
 		}
 		return convert(x);
 	}
+
 	private String convert(double x) {
 		return stockTicker + "_" + date + putOrCall + Util.convertDecimalToString(x);
 	}
@@ -132,7 +167,9 @@ public class OptionData {
 		return convert(price.doubleValue()) + " : " + quantity;
 	}
 
-	
+	public String getOptionSymbol() {
+		return convert(this.getPrice().doubleValue());
+	}
 
 	public PutCall getPutCall() {
 		if (isCall()) {
@@ -142,7 +179,8 @@ public class OptionData {
 	}
 
 	public String makePossibleProtectionLongOption(Double currentStockPrice, double percentageDeviation) {
-		double p = findPickableStockPrice(currentStockPrice, percentageDeviation);
+		Double dp =  findPickableStockPrice(currentStockPrice, percentageDeviation);
+		double p = dp.doubleValue();
 		String s = convert(p);
 		return s;
 
@@ -165,5 +203,18 @@ public class OptionData {
 
 	public BigDecimal getPrice() {
 		return price;
+	}
+
+	public boolean isExpiringToday() {
+		LocalDate ld = LocalDate.now();
+		boolean b = getDateTime().toLocalDate().equals(ld);
+		return b;
+	}
+
+	public int getDaysToExpiry() {
+		LocalDate ld = LocalDate.now();
+		LocalDate exp = getDateTime().toLocalDate();
+		int daysBetween = (int)ChronoUnit.DAYS.between(ld, exp);
+		return daysBetween;
 	}
 }
