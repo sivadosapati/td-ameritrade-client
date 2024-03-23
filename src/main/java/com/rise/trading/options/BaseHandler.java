@@ -102,8 +102,10 @@ public class BaseHandler {
 		final SecuritiesAccount account = getClient().getAccount(accountId, true, true);
 		// System.out.println(account.);
 		List<Position> positions = account.getPositions();
+		
 		// System.out.println(positions);
 		GroupedPositions gp = new GroupedPositions(positions);
+		
 		return gp;
 
 	}

@@ -52,6 +52,11 @@ public class PassiveIncomeLongStrategy extends PassiveIncomeStrategy {
 	@Override
 	protected void openNewOptionPositionForSellCallOrPut(String accountId, Ticker ticker, int shortQuantity,
 			OptionInstrument.PutCall opc, PassiveIncomeOptionProcessorInput input) {
+		if(ticker.isRollOptionsForNextDayOrWeek()) {
+			super.openNewOptionPositionForSellCallOrPut(accountId, ticker, shortQuantity, opc, input);
+			return;
+		}
+		super.openNewOptionPositionForSellCallOrPut(accountId, ticker, shortQuantity, opc, input);
 		if (opc == OptionInstrument.PutCall.CALL) {
 			opc = OptionInstrument.PutCall.PUT;
 		} else {

@@ -72,8 +72,8 @@ public class Util {
 		System.out.println(Util.toJSON(o));
 	}
 
-	static String[] kidsAccounts = new String[]{ Util.getAccountId2(), Util.getAccountId3(), Util.getAccountId4() };
-	
+	static String[] kidsAccounts = new String[] { Util.getAccountId2(), Util.getAccountId3(), Util.getAccountId4() };
+
 	public static boolean canAccountBeUsedForSellingEquities(String accountId) {
 		for (String a : kidsAccounts) {
 			if (accountId.equals(a)) {
@@ -283,6 +283,8 @@ public class Util {
 
 	public static String toJSON(Object object) {
 		try {
+			if (object == null)
+				return null;
 			return new ObjectMapper().writeValueAsString(object);
 		} catch (Exception e) {
 			throw new RuntimeException(e);
@@ -362,13 +364,13 @@ public class Util {
 	}
 
 	public static Order makeOption(String optionSymbol, int quantity, Duration d, Double price,
-			OptionInstrument.PutCall pc, OrderType type, Instruction i) {
+			OptionInstrument.PutCall pc, OrderType type, Instruction i) throws DontBuyOptionException{
 
 		if (i == Instruction.SELL_TO_OPEN && type == OrderType.MARKET) {
 			Option oo = findRightNearestOption(optionSymbol);
 			double pp = oo.getLastPrice().doubleValue();
 			if (pp < 0.10d) {
-				throw new RuntimeException(oo.getSymbol() + "'s price is " + pp
+				throw new DontBuyOptionException(oo.getSymbol() + "'s price is " + pp
 						+ " and is less than 0.10. There is no value in placing an order");
 			}
 		}

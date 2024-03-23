@@ -49,12 +49,14 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 
 	// private List<String> stockTickerSymbolsThatCanBeShortedWhenLongExists =
 	// Arrays.asList();
-	private List<String> stockTickerSymbolsThatCanBeShortedWhenLongExists = Arrays.asList("TQQQ", "IWM", "SPY");
+	private List<String> stockTickerSymbolsThatCanBeShortedWhenLongExists = Arrays.asList("TQQQ", "IWM", "SPY", "AMD");
+
+	private List<String> skippedSymbols = Arrays.asList("SOLO", "WKHS");
 
 	public static void main(String args[]) {
 		final PassiveIncomeStrategy pis = new PassiveIncomeStrategy();
 
-		pis.closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(Util.getAccountId4());
+		pis.closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(Util.getAccountId6());
 
 	}
 
@@ -290,9 +292,10 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 
 		}
 
-		public OptionData findPurchasableOptionDataForOppositeSellCallsOrPuts(OptionData od) {
+		public OptionData findPurchasableOptionDataForOppositeSellCallsOrPuts(OptionData od, Double stockPrice) {
 			String key = od.getOppositeKeyWithoutStrikePrice();
 			TreeMap<Double, String> keyMap = new TreeMap<Double, String>();
+
 			for (Map.Entry<String, OptionData> entry : this.optionDataMap.entrySet()) {
 				String s = entry.getKey();
 				OptionData value = entry.getValue();
@@ -305,15 +308,24 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 				}
 			}
 			if (keyMap.size() == 0) {
-				return od;
+				Double priceForPurchase = stockPrice;
+				if (od.isPut()) {
+					return new OptionData(od.getStockTicker(), od.getDate(), od.getReversePutOrCall(),
+							new BigDecimal(Math.floor(priceForPurchase)));
+				} else {
+					return new OptionData(od.getStockTicker(), od.getDate(), od.getReversePutOrCall(),
+							new BigDecimal(Math.ceil(priceForPurchase)));
+				}
 			}
 			if (od.isPut()) {
+
 				return new OptionData(od.getStockTicker(), od.getDate(), od.getReversePutOrCall(),
 						new BigDecimal(keyMap.firstKey() - 1));
 			} else {
 				return new OptionData(od.getStockTicker(), od.getDate(), od.getReversePutOrCall(),
 						new BigDecimal(keyMap.lastKey() + 1));
 			}
+
 		}
 
 		public Map<String, LongAndShortQuantity> getOptionsWithNetShortAndLong() {
@@ -484,8 +496,15 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 		boolean matches(String key);
 	}
 
+	private void stripSkippedSymbols(GroupedPositions gps) {
+		for (String s : skippedSymbols) {
+			gps.removePosition(s);
+		}
+	}
+
 	public void closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(String accountId) {
 		GroupedPositions gps = getGroupedPositions(accountId);
+		stripSkippedSymbols(gps);
 		// LocalDate ld = getTheImmediateBusinessDay().toLocalDate();
 		Set<String> symbols = new HashSet<String>();
 		OptionPositions op = new OptionPositions();
@@ -507,13 +526,13 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 			// System.out.println("After \n "+Util.toJSON(op));
 			adjustOptionsWithoutProtectionWithCoveredCall(optionsWithoutProtection, gps);
 			purchaseLongOptionsIfNeeded(optionsWithoutProtection, prices, accountId, gps);
-			purchaseSellCallOrPutIfLongOptionsExist(op, prices, accountId);
+			purchaseSellCallOrPutIfLongOptionsExist(op, prices, accountId, gps);
 
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 
-		// System.out.println("Option positions -> "+accountId+"\n"+Util.toJSON(op));
+		System.out.println("Option positions -> " + accountId + "\n" + Util.toJSON(op));
 		for (GroupedPosition gp : gps.getGroupedPositions()) {
 			List<Position> o = gp.getOptions();
 			// List<Position> o = getOptionPositionsThatExpireOnThisDay(gp, ld);
@@ -571,7 +590,7 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 	}
 
 	protected void workOnEquity(String accountId, GroupedPosition gp, Position p) {
-		if(!Util.canAccountBeUsedForSellingEquities(accountId)) {
+		if (!Util.canAccountBeUsedForSellingEquities(accountId)) {
 			return;
 		}
 
@@ -653,7 +672,7 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 	}
 
 	protected void purchaseSellCallOrPutIfLongOptionsExist(OptionPositions op, Map<String, Double> prices,
-			String accountId) {
+			String accountId, GroupedPositions gps) {
 		for (Map.Entry<String, LongAndShortQuantity> entry : op.getOptionsWithNetShortAndLong().entrySet()) {
 			String keyWithOutPrice = entry.getKey();
 			LongAndShortQuantity las = entry.getValue();
@@ -662,20 +681,20 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 				continue;
 			}
 			int sc = Math.abs(las.getShortQuantity());
-			if (sc > MAX_SELL_OPTION_COUNT) {
+			if (sc >= MAX_SELL_OPTION_COUNT) {
 				System.out.println(
 						"purchaseSellCallOrPutIfLongOptionExist -> Too many sell options and there is no point purchasing another sell option -> "
 								+ sc + " -> " + keyWithOutPrice);
-				return;
+				continue;
 			}
 			OptionData od = OptionSymbolParser.parse(keyWithOutPrice + "1");
-			purcahseSellCallOrPutIfLongOptionExists(op, od, prices.get(od.getStockTicker()), accountId, value, 1);
+			purcahseSellCallOrPutIfLongOptionExists(op, od, prices.get(od.getStockTicker()), accountId, value, 1, gps);
 		}
 
 	}
 
 	private void purcahseSellCallOrPutIfLongOptionExists(OptionPositions op, OptionData od, Double stockPrice,
-			String accountId, Integer value, int quantity) {
+			String accountId, Integer value, int quantity, GroupedPositions gps) {
 		if (stockTickerSymbolsThatCanBeShortedWhenLongExists.contains(od.getStockTicker()) == false) {
 			return;
 		}
@@ -686,25 +705,49 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 		}
 		if (value > 0) {
 			// placeNextSmartShortOptionOrder(op, od, stockPrice, accountId, quantity);
-			OptionData x = op.findPurchasableOptionDataForOppositeSellCallsOrPuts(od);
-			x.swapPutOrCall();
-			String os = x.getOptionSymbol();
-			System.out.println("purchaseSellCallOrPutIfLongOptionExists -> " + os + " -> " + accountId);
-			placeNextSmartShortOptionOrder(accountId, os, quantity, od.getPutCall());
+			optimizedPlaceNextSmartShortOptionOrder(op, od, accountId, quantity, gps, stockPrice);
+
 		}
 
 	}
 
-	private void OLDplaceNextSmartShortOptionOrderOld(OptionPositions op, OptionData od, Double stockPrice,
-			String accountId, int quantity) {
-		System.out.println(
-				"purchaseSellCallOrPutIfLongOptionExists -> " + od.getKeyWithoutStrikePrice() + " -> " + accountId);
-		String os = od.createOptionSymbolForPrice(stockPrice.doubleValue());
-		OptionData opd = op.getOptionData(os);
-		if (opd != null) {
-			System.out.println("purchaseSellCallOrPutIfLongOptionExists ->. " + os + " already exists, hence skipping");
+	private void optimizedPlaceNextSmartShortOptionOrder(OptionPositions op, OptionData od, String accountId,
+			int quantity, GroupedPositions gps, Double stockPrice) {
+		String os = null;
+
+		OptionData x = op.findPurchasableOptionDataForOppositeSellCallsOrPuts(od, stockPrice);
+
+		x.swapPutOrCall();
+		os = x.getOptionSymbol();
+
+		Position p = gps.getOptionPositionIfExisting(x);
+		boolean placeOrder = false;
+		if (p != null) {
+			double d = p.getMarketValue().doubleValue() / p.getShortQuantity().doubleValue();
+			double t = p.getAveragePrice().doubleValue();
+			if (t > 1.1 * d) {
+				System.out.println("-------Placing purchaseSellCallOrPutIfLongOptionExists -> " + os + " -> "
+						+ accountId + " -> " + d + " -> " + t);
+				placeOrder = true;
+
+			} else {
+				System.out.println("-------Not Placing purchaseSellCallOrPutIfLongOptionExists -> " + os + " -> "
+						+ accountId + " -> " + d + " -> " + t);
+				placeOrder = false;
+			}
+		} else {
+			System.out.println("---------No Position -> Placing purchaseSellCallOrPutIfLongOptionExists -> " + os
+					+ " -> " + accountId + " -> " + Util.toJSON(od) + " -> " + Util.toJSON(x));
+			placeOrder = true;
 		}
-		placeNextSmartShortOptionOrder(accountId, os, quantity, od.getPutCall());
+
+		if (placeOrder) {
+			try {
+				placeNextSmartShortOptionOrder(accountId, os, quantity, od.getPutCall());
+			} catch (DontBuyOptionException de) {
+
+			}
+		}
 	}
 
 	private void purchaseLongOptionsIfNeeded(List<OptionData> optionsWithoutProtection, Map<String, Double> prices,
@@ -865,6 +908,7 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 		}
 		if (shouldOptionsBeRolled(ticker)) {
 			Ticker tck = createTickerForRollingOption(input.ticker, currentStockPrice, pop.getOptionPrice());
+			tck.setRollOptionsForNextDayOrWeek(true);
 			if (isOptionExpiringToday(oi.getSymbol())) {
 				System.out.println("Last minutes of trading and acting on -> " + oi.getSymbol() + " -> " + marketValue
 						+ " -> Quantity -> " + (shortQuantity > 0 ? shortQuantity : longQuantity));
@@ -877,23 +921,28 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 			}
 			OptionData od = input.getOptionData();
 			if (od.getDaysToExpiry() <= 2) {
-				tck.setRollOptionsForNextDayOrWeek(true);
 				Double strikePrice = od.getPrice().doubleValue();
 				Double stockPrice = input.currentStockPrice;
-				Double deviation = (strikePrice - stockPrice) * 100 / strikePrice;
+				Double delta = strikePrice - stockPrice;
+				if (Math.abs(delta) <= 5) {
+					return;
+				}
+				Double deviation = delta * 100 / strikePrice;
 				if (od.isCall()) {
 					if (deviation < -2.5d) {
 						System.out.println(
-								"shouldOptionsBeRolled() -> Rolling options to next day or week as the stock price has deviated from strike price -> "
+								"shouldOptionsBeRolled() -> Rolling options to next day or week as the stock price has deviated from strike price call -> "
 										+ strikePrice + " -> " + stockPrice + " -> " + od.symbol);
-						closeSellOptionAndOpenNewOne(accountId, p, tick, input);
+						closeSellOptionAndOpenNewOne(accountId, p, tck, input);
 						return;
 					}
 				}
 				if (od.isPut()) {
 					if (deviation > 2.5d) {
-
-						closeSellOptionAndOpenNewOne(accountId, p, tick, input);
+						System.out.println(
+								"shouldOptionsBeRolled() -> Rolling options to next day or week as the stock price has deviated from strike price put -> "
+										+ strikePrice + " -> " + stockPrice + " -> " + od.symbol);
+						closeSellOptionAndOpenNewOne(accountId, p, tck, input);
 						return;
 					}
 				}
@@ -921,27 +970,6 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 
 	}
 
-	protected void placeNextSmartLongOptionOrderOld(String accountId, String symbol, int quantity,
-			OptionInstrument.PutCall pc) {
-		if (!Util.canOptionsBeTradedNow()) {
-			System.out.println("This is not market hours for trading options and I can't place market orders -> "
-					+ accountId + " -> " + symbol + " -> " + quantity);
-			return;
-		}
-		Order order = null;
-		try {
-			order = Util.makeOption(symbol, quantity, Duration.DAY, null, pc, OrderType.MARKET,
-					Instruction.BUY_TO_OPEN);
-			System.out.println("placeNextSmartLongOptionOrder -> Happy Path - > " + Util.toJSON(order));
-			getClient().placeOrder(accountId, order);
-		} catch (RuntimeException e) {
-			order = Util.makeSmartOptionWhenTheSymbolDoesntExist(symbol, quantity, Duration.DAY, null, pc,
-					OrderType.MARKET, Instruction.BUY_TO_OPEN);
-			System.out.println("placeNextSmartLongOptionOrder -> No Option exists path - > " + Util.toJSON(order));
-			getClient().placeOrder(accountId, order);
-		}
-	}
-
 	protected void placeNextSmartLongOptionOrder(String accountId, String symbol, int quantity,
 			OptionInstrument.PutCall pc) {
 
@@ -954,7 +982,7 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 	}
 
 	protected void placeNextSmartMarketOptionOrder(String accountId, String symbol, int quantity,
-			OptionInstrument.PutCall pc, Instruction i) {
+			OptionInstrument.PutCall pc, Instruction i) throws DontBuyOptionException {
 		if (!Util.canOptionsBeTradedNow()) {
 			System.out.println("This is not market hours for trading options and I can't place market orders -> "
 					+ accountId + " -> " + symbol + " -> " + quantity);
@@ -965,6 +993,9 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 			order = Util.makeOption(symbol, quantity, Duration.DAY, null, pc, OrderType.MARKET, i);
 			System.out.println("placeNextSmartLongOptionOrder -> Happy Path - > " + Util.toJSON(order));
 			getClient().placeOrder(accountId, order);
+		} catch (DontBuyOptionException de) {
+			System.out.println("placeNextSmartOptionOrder -> " + de.getMessage());
+			throw de;
 		} catch (RuntimeException e) {
 			order = Util.makeSmartOptionWhenTheSymbolDoesntExist(symbol, quantity, Duration.DAY, null, pc,
 					OrderType.MARKET, i);
@@ -1008,6 +1039,7 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 			t.setOptionSpreadDistance((int) (-x + 5));
 		}
 		t.setRollDistance(0f);
+		t.setRollOptionsForNextDayOrWeek(true);
 
 		return t;
 	}
@@ -1036,7 +1068,7 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 	protected void openNewOptionPositionForSellCallOrPut(String accountId, Ticker ticker, int shortQuantity,
 			OptionInstrument.PutCall opc, PassiveIncomeOptionProcessorInput input) {
 
-		if (shortQuantity > 10) {
+		if (shortQuantity > 10 && !ticker.getRollOptionsForNextDayOrWeek()) {
 			System.out.println(
 					"Limiting to only 10 options -> " + MAX_NUMBER_OF_SELL_POSITIONS + " from -> " + shortQuantity);
 			shortQuantity = 10;
@@ -1045,9 +1077,18 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 
 		String key = input.getOptionData().getKeyWithoutStrikePrice();
 		int shortPositions = input.optionPositions.getShortPositions(key);
-		if (shortPositions >= MAX_SELL_OPTION_COUNT) {
+		if (shortPositions >= MAX_SELL_OPTION_COUNT && !ticker.isRollOptionsForNextDayOrWeek()) {
 			System.out.println("Number of Sell Positions is greater than -> " + MAX_SELL_OPTION_COUNT + " from -> "
 					+ key + " so not creating more sell positions");
+			return;
+		}
+		if (ticker.isRollOptionsForNextDayOrWeek()) {
+			if (opc == OptionInstrument.PutCall.CALL) {
+				placeNextWeeklyTradeForPassiveIncome(accountId, ticker, ticker.getRollDistance(), null, shortQuantity);
+			}
+			if (opc == OptionInstrument.PutCall.PUT) {
+				placeNextWeeklyTradeForPassiveIncome(accountId, ticker, null, ticker.getRollDistance(), shortQuantity);
+			}
 			return;
 		}
 
@@ -1453,6 +1494,14 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 			}
 			System.out.println("placeNextDayTradeForPassiveIncome -> " + stockTicker + " -> " + from + " -> " + to);
 		}
+		placeOptionTradesForPassiveIncome(accountId, stockTicker, callDistance, putDistance, numberOfContracts, from,
+				to);
+	}
+
+	public void placeNextWeekTradeForPassiveIncome(String accountId, Ticker stockTicker, Float callDistance,
+			Float putDistance, int numberOfContracts) {
+		LocalDateTime from = getNextWeekFriday();
+		LocalDateTime to = getNextWeekFriday();
 		placeOptionTradesForPassiveIncome(accountId, stockTicker, callDistance, putDistance, numberOfContracts, from,
 				to);
 	}

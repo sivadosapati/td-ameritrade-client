@@ -103,4 +103,25 @@ public class GroupedPositions {
 		return groupedPositions.get(symbol);
 	}
 
+	public void removePosition(String s) {
+		groupedPositions.remove(s);
+	}
+
+	public Position getOptionPositionIfExisting(OptionData x) {
+		String stock = x.getStockTicker();
+		String symbol = x.getOptionSymbol();
+		GroupedPosition gp = this.getGroupedPosition(stock);
+		if( gp == null) {
+			return null;
+		}
+		List<Position> list = gp.getOptions();
+		for( Position p : list) {
+			String s = p.getInstrument().getSymbol();
+			if( s.equals(symbol))
+				return p;
+		}
+		return null;
+
+	}
+
 }
