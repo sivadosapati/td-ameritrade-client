@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.studerw.tda.client.HttpTdaClient;
 import com.studerw.tda.model.account.CashEquivalentInstrument;
 import com.studerw.tda.model.account.EquityInstrument;
 import com.studerw.tda.model.account.Instrument;
@@ -19,6 +20,13 @@ public class GroupedPositions {
 
 	public Collection<GroupedPosition> getGroupedPositions() {
 		return groupedPositions.values();
+	}
+
+	public static void main(String args[]) {
+
+		GroupedPositions gp = new PositionsHandler().getGroupedPositions(Util.getAccountId6());
+		Position p = gp.getOptionPositionIfExisting(OptionSymbolParser.parse("IWM_032824P208"));
+		System.out.println(p);
 	}
 
 	public GroupedPositions(List<Position> positions) {
@@ -111,17 +119,36 @@ public class GroupedPositions {
 		String stock = x.getStockTicker();
 		String symbol = x.getOptionSymbol();
 		GroupedPosition gp = this.getGroupedPosition(stock);
-		if( gp == null) {
+		if (gp == null) {
 			return null;
 		}
 		List<Position> list = gp.getOptions();
-		for( Position p : list) {
+		for (Position p : list) {
 			String s = p.getInstrument().getSymbol();
-			if( s.equals(symbol))
+			if (s.equals(symbol))
 				return p;
 		}
 		return null;
 
+	}
+
+	
+
+	public Position getOptionPositionIfExisting(String optionSymbol) {
+		for( GroupedPosition x : this.getGroupedPositions()) {
+			List<Position> list = x.getOptions();
+			for( Position p : list) {
+				String s = p.getInstrument().getSymbol();
+				if( s.equals(optionSymbol)) {
+					return p;
+				}
+			}
+		}
+		return null;
+	}
+
+	interface OptionMatcher {
+		boolean matches(String x);
 	}
 
 }

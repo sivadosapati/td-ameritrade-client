@@ -20,13 +20,13 @@ class Scanner extends Thread {
 	PassiveIncomeStrategy pis = new PassiveIncomeStrategy();
 
 	public void run() {
-		String[] accounts = { Util.getAccountId1(), Util.getAccountId6(), Util.getAccountId7(), Util.getAccountId4() };
+		String[] accounts = { Util.getAccountId1(), Util.getAccountId6(), Util.getAccountId7(), Util.getAccountId4(),Util.getAccountId2(), Util.getAccountId3() };
 		String[] accountsToBeScannedEveryHour = { Util.getAccountId2(), Util.getAccountId3() };
 		int counter = 0;
 		int minutes = 5;
 		while (true) {
 
-			if (!Util.notMarketHours()) {
+			if (!Util.notMarketHoursForTradingOptions()) {
 				System.out.println("Not scanning -> " + counter + " -> " + new java.util.Date());
 			} else {
 				try {

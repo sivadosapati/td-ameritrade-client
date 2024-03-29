@@ -21,12 +21,13 @@ public class PassiveIncomeLongStrategy extends PassiveIncomeStrategy {
 	}
 
 	@Override
-	protected double getPotentialProfitMarketValueForLongPositions(int longQuantity, Position p) {
-		return super.getPotentialProfitMarketValueForLongPositions(longQuantity, p);
+	protected double getPotentialProfitMarketValueForLongPositions(int longQuantity, PassiveIncomeOptionProcessorInput input) {
+		return super.getPotentialProfitMarketValueForLongPositions(longQuantity, input);
 	}
 
 	@Override
-	protected double getPotentialProfitValueForShortPosition(int shortQuantity, Position p) {
+	protected double getPotentialProfitValueForShortPosition(int shortQuantity, PassiveIncomeOptionProcessorInput input) {
+		Position p = input.position;
 		return -1 * shortQuantity * p.getAveragePrice().doubleValue() * 0.8 * 100;
 	}
 

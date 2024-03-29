@@ -45,6 +45,7 @@ import com.studerw.tda.model.account.OrderStrategyType;
 import com.studerw.tda.model.account.OrderType;
 import com.studerw.tda.model.account.Position;
 import com.studerw.tda.model.account.Session;
+import com.studerw.tda.model.markethours.Hours;
 import com.studerw.tda.model.option.Option;
 import com.studerw.tda.model.option.OptionChain;
 import com.studerw.tda.model.option.OptionChainReq;
@@ -63,7 +64,28 @@ public class Util {
 	private static Accounts accounts = fetchAccounts();
 	private static HttpTdaClient httpTDAClient = null;
 
-	public static void main(String args[]) throws Exception {
+	public static void main(String args[]) {
+		HttpTdaClient httpTdaClient = getHttpTDAClient();
+		List<Hours.MarketType> marketType = new ArrayList<>(Collections.singleton(Hours.MarketType.OPTION));
+		LocalDateTime ldt = LocalDateTime.now();
+		// httpTdaClient.get
+		// httpTdaClient.get
+		final List<Hours> hours = httpTdaClient.getMarketHours(marketType);
+		System.out.println(Util.toJSON(hours));
+	}
+
+	public static Hours getMarketHourForOptions() {
+		HttpTdaClient httpTdaClient = getHttpTDAClient();
+		List<Hours.MarketType> marketType = new ArrayList<>(Collections.singleton(Hours.MarketType.OPTION));
+		// LocalDateTime ldt = LocalDateTime.now();
+		// httpTdaClient.get
+		// httpTdaClient.get
+		final List<Hours> hours = httpTdaClient.getMarketHours(marketType);
+		// System.out.println(Util.toJSON(hours));
+		return hours.get(0);
+	}
+
+	public static void mainOld(String args[]) throws Exception {
 		// playWithDates();
 		String symbol = "SPY_031924C520.5";
 		// Option o = findRightNearestOption(symbol);
@@ -364,7 +386,7 @@ public class Util {
 	}
 
 	public static Order makeOption(String optionSymbol, int quantity, Duration d, Double price,
-			OptionInstrument.PutCall pc, OrderType type, Instruction i) throws DontBuyOptionException{
+			OptionInstrument.PutCall pc, OrderType type, Instruction i) throws DontBuyOptionException {
 
 		if (i == Instruction.SELL_TO_OPEN && type == OrderType.MARKET) {
 			Option oo = findRightNearestOption(optionSymbol);
@@ -486,8 +508,22 @@ public class Util {
 		return o.getSymbol();
 	}
 
-	public static boolean notMarketHours() {
+	private static Map<String, Boolean> marketOpenForOptions = new HashMap<String, Boolean>();
+
+	private static Boolean getMarketOpenForDate(String x) {
+		Boolean b = marketOpenForOptions.get(x);
+		if( b == null) {
+			Hours hours = getMarketHourForOptions();
+			Boolean bb = hours.getIsOpen();
+			marketOpenForOptions.put(hours.getDate(), bb);
+			
+		}
+		return b;
+	}
+	
+	public static boolean notMarketHoursForTradingOptions() {
 		LocalDate date = LocalDate.now();
+		
 		if (date.getDayOfWeek() == DayOfWeek.SATURDAY) {
 			return false;
 
@@ -495,11 +531,16 @@ public class Util {
 		if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
 			return false;
 		}
+		//String yyyyMMdd = date.toString();
+		//Boolean b = getMarketOpenForDate(yyyyMMdd);
+		//if( b == false) {
+			//return false;
+		//}
 		LocalTime time = LocalTime.now();
 
 		// System.out.println(time.getHour());
 		// After 12 PM - pick the next day
-		if (time.getHour() >= 14 + HOURS_TO_ADJUST_FOR_PST) {
+		if (time.getHour() >= 13 + HOURS_TO_ADJUST_FOR_PST) {
 			return false;
 		}
 		if (time.getHour() < 6 + HOURS_TO_ADJUST_FOR_PST) {
@@ -507,13 +548,6 @@ public class Util {
 		}
 		if (time.getHour() == 6 + HOURS_TO_ADJUST_FOR_PST) {
 			if (time.getMinute() >= 30) {
-				return true;
-			} else {
-				return false;
-			}
-		}
-		if (time.getHour() == 13 + HOURS_TO_ADJUST_FOR_PST) {
-			if (time.getMinute() < 15 + HOURS_TO_ADJUST_FOR_PST) {
 				return true;
 			} else {
 				return false;
