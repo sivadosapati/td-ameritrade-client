@@ -28,7 +28,12 @@ public class PassiveIncomeLongStrategy extends PassiveIncomeStrategy {
 	@Override
 	protected double getPotentialProfitValueForShortPosition(int shortQuantity, PassiveIncomeOptionProcessorInput input) {
 		Position p = input.position;
-		return -1 * shortQuantity * p.getAveragePrice().doubleValue() * 0.8 * 100;
+		double average = p.getAveragePrice().doubleValue();
+		if( average <= 0.10) {
+			System.out.println("getPotentialProfitValueForShortPosition is less than < 0.10 -> "+average);
+			return super.getPotentialProfitValueForShortPosition(shortQuantity, input);
+		}
+		return -1 * shortQuantity * average * 0.75 * 100;
 	}
 
 	@Override
@@ -50,6 +55,17 @@ public class PassiveIncomeLongStrategy extends PassiveIncomeStrategy {
 		return 1.5d;
 	}
 
+	
+	protected void openNewOptionPositionForSellCallOrPutOld(String accountId, Ticker ticker, int shortQuantity,
+			OptionInstrument.PutCall opc, PassiveIncomeOptionProcessorInput input) {
+		if(ticker.isRollOptionsForNextDayOrWeek()) {
+			super.openNewOptionPositionForSellCallOrPut(accountId, ticker, shortQuantity, opc, input);
+			return;
+		}
+		super.sellShortCallOrPutByFlippingOptionData(input, shortQuantity);
+
+	}
+	
 	@Override
 	protected void openNewOptionPositionForSellCallOrPut(String accountId, Ticker ticker, int shortQuantity,
 			OptionInstrument.PutCall opc, PassiveIncomeOptionProcessorInput input) {
@@ -57,7 +73,7 @@ public class PassiveIncomeLongStrategy extends PassiveIncomeStrategy {
 			super.openNewOptionPositionForSellCallOrPut(accountId, ticker, shortQuantity, opc, input);
 			return;
 		}
-		super.openNewOptionPositionForSellCallOrPut(accountId, ticker, shortQuantity, opc, input);
+		//super.openNewOptionPositionForSellCallOrPut(accountId, ticker, shortQuantity, opc, input);
 		if (opc == OptionInstrument.PutCall.CALL) {
 			opc = OptionInstrument.PutCall.PUT;
 		} else {
@@ -76,7 +92,6 @@ public class PassiveIncomeLongStrategy extends PassiveIncomeStrategy {
 		}
 
 	}
-
 	private void placeNewOptionPositionForSellCallOrput(String accountId, Ticker ticker, int shortQuantity, PutCall opc,
 			PassiveIncomeOptionProcessorInput input) {
 		super.openNewOptionPositionForSellCallOrPut(accountId, ticker, shortQuantity, opc, input);
