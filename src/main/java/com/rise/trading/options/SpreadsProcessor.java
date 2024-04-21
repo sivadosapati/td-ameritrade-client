@@ -12,7 +12,7 @@ import com.studerw.tda.model.account.Position;
 public class SpreadsProcessor {
 
 	public static void main(String args[]) {
-		findSpreads(Util.getAccountId7());
+		findSpreads(Util.getAccountId1());
 	}
 
 	private static void findSpreads(String accountId) {
@@ -20,14 +20,20 @@ public class SpreadsProcessor {
 		PositionsHandler ph = new PositionsHandler();
 		GroupedPositions gp = ph.getGroupedPositions(accountId);
 		for (GroupedPosition x : gp.getGroupedPositions()) {
-			List<Position> p = x.getOptions();
-			if (p.size() == 0)
-				continue;
-			Spreads s = sp.makeSpreads(p);
+			Spreads s = sp.makeSpreads(x);
 			// System.out.println(Util.toJSON(s));
 			s.display();
 
 		}
+	}
+	
+	public Spreads makeSpreads(GroupedPosition x) {
+		Spreads spreads = new Spreads();
+		List<Position> p = x.getOptions();
+		if (p.size() == 0)
+			return spreads;
+		spreads = makeSpreads(p);
+		return spreads;
 	}
 
 	public Spreads makeSpreads(List<Position> positions) {

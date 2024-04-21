@@ -29,7 +29,7 @@ public class GroupedPositions {
 		System.out.println(p);
 	}
 
-	public GroupedPositions(List<Position> positions) {
+	public GroupedPositions(List<Position> positions, String accountId) {
 		for (Position p : positions) {
 			Instrument i = p.getInstrument();
 			String symbol = i.getSymbol();
@@ -38,7 +38,7 @@ public class GroupedPositions {
 			}
 			GroupedPosition group = groupedPositions.get(symbol);
 			if (group == null) {
-				group = new GroupedPosition(symbol);
+				group = new GroupedPosition(symbol, accountId);
 				groupedPositions.put(symbol, group);
 			}
 			if (i instanceof EquityInstrument) {

@@ -16,6 +16,34 @@ public class Spread {
 				+ toPriceInfo();
 	}
 
+	public double getSpreadDistance() {
+		return Math.abs(longPosition.getPrice().doubleValue() - shortPosition.getPrice().doubleValue());
+	}
+
+	public boolean isSpreadReturnGreaterThan(int percentage) {
+		Position lp = longPosition.getPosition();
+		Position sp = shortPosition.getPosition();
+		double lpAvg = lp.getAveragePrice().doubleValue();
+		double spAvg = sp.getAveragePrice().doubleValue();
+		double lpMarket = lp.getMarketValue().doubleValue() / (100 * longPosition.getAbsoluteQuantity());
+		double spMarket = Math.abs(sp.getMarketValue().doubleValue() / (100 * shortPosition.getAbsoluteQuantity()));
+		lpAvg = Util.rnd(lpAvg);
+		spAvg = Util.rnd(spAvg);
+		lpMarket = Util.rnd(lpMarket);
+		spMarket = Util.rnd(spMarket);
+		double purchaseCredit = spAvg - lpAvg;
+		double marketCredit = spMarket - lpMarket;
+		double totalReturn = (purchaseCredit - marketCredit) * quantity * 100;
+		// Return should include commission price for each contract, normally it is 65
+		// cents per contract and closing a spread means 4 contracts for buying and
+		// selling a spread
+		double expectedReturn = quantity * (0.65 * 4 + (percentage * getSpreadDistance()));
+		if (totalReturn > expectedReturn) {
+			return true;
+		}
+		return false;
+	}
+
 	public String toPriceInfo() {
 		Position lp = longPosition.getPosition();
 		Position sp = shortPosition.getPosition();
@@ -28,14 +56,19 @@ public class Spread {
 		spAvg = Util.rnd(spAvg);
 		lpMarket = Util.rnd(lpMarket);
 		spMarket = Util.rnd(spMarket);
-		
+
 		double purchaseCredit = spAvg - lpAvg;
 		double marketCredit = spMarket - lpMarket;
-		double percentageReturn = (purchaseCredit - marketCredit) * 100 /purchaseCredit;
+		double percentageReturn = (purchaseCredit - marketCredit) * 100 / purchaseCredit;
 		percentageReturn = Util.rnd(percentageReturn);
 		purchaseCredit = Util.rnd(purchaseCredit);
 		marketCredit = Util.rnd(marketCredit);
-		return "Long: [" + lpAvg + ":" + lpMarket + "] -> Short[" + spAvg + ":" + spMarket + "] -> [PC,MC = PR : "+purchaseCredit+","+marketCredit+" = "+percentageReturn+"] ";
+
+		double totalReturn = (purchaseCredit - marketCredit) * quantity * 100;
+		double expectedReturn = quantity * (0.5 * 4 + 100 * 0.05 * getSpreadDistance());
+		return "Long: [" + lpAvg + ":" + lpMarket + "] -> Short[" + spAvg + ":" + spMarket + "] -> [PC,MC = PR : "
+				+ purchaseCredit + "," + marketCredit + " = " + percentageReturn + "] : [ER,TR]=[" + expectedReturn
+				+ "," + totalReturn + "]";
 
 	}
 

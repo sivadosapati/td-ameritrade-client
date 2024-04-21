@@ -195,7 +195,7 @@ public class BaseHandler {
 		List<Position> positions = account.getPositions();
 
 		// System.out.println(positions);
-		GroupedPositions gp = new GroupedPositions(positions);
+		GroupedPositions gp = new GroupedPositions(positions, accountId);
 
 		return gp;
 

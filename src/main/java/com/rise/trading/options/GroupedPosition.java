@@ -6,6 +6,23 @@ import java.util.List;
 import com.studerw.tda.model.account.Position;
 
 public class GroupedPosition {
+	private String accountId;
+	public String getAccountId() {
+		return accountId;
+	}
+
+	public void setAccountId(String accountId) {
+		this.accountId = accountId;
+	}
+
+	public void setSymbol(String symbol) {
+		this.symbol = symbol;
+	}
+
+	public void setOptions(List<Position> options) {
+		this.options = options;
+	}
+
 	private String symbol;
 	private Position equity;
 	private Position cash;
@@ -35,8 +52,9 @@ public class GroupedPosition {
 		return options;
 	}
 
-	public GroupedPosition(String symbol) {
+	public GroupedPosition(String symbol, String accountId) {
 		this.symbol = symbol;
+		this.accountId = accountId;
 	}
 
 	public String toString() {

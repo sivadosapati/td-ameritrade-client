@@ -10,20 +10,28 @@ public class PassiveIncomeOptionProcessorChain extends BaseHandler implements Pa
 	private PassiveIncomeOptionProcessor COMMON = new PassiveIncomeStrategy();
 
 	public PassiveIncomeOptionProcessorChain() {
-		//addPassiveIncomeOptionProcessor("TQQQ", new PassiveIncomeLongStrategy());
+		// addPassiveIncomeOptionProcessor("TQQQ", new PassiveIncomeLongStrategy());
+		PassiveIncomeSpreadProcessorStrategy spreads = new PassiveIncomeSpreadProcessorStrategy();
+		addPassiveIncomeOptionProcessor("AMD", spreads);
+		addPassiveIncomeOptionProcessor("QQQ", spreads);
 	}
 
 	@Override
 	public void closeOptionIfInProfitAndPotentiallyOpenNewOne(PassiveIncomeOptionProcessorInput input) {
-		PassiveIncomeOptionProcessor x = processors.get(getKey(input.ticker, input.accountId));
+		PassiveIncomeOptionProcessor x = getPassiveIncomeOptionProcessor(input);
+		x.closeOptionIfInProfitAndPotentiallyOpenNewOne(input);
+
+	}
+
+	private PassiveIncomeOptionProcessor getPassiveIncomeOptionProcessor(PassiveIncomeInput input) {
+		PassiveIncomeOptionProcessor x = processors.get(getKey(input.getStockTicker(), input.getAccountId()));
 		if (x == null) {
-			x = processors.get(input.ticker);
+			x = processors.get(input.getStockTicker());
 			if (x == null) {
 				x = COMMON;
 			}
 		}
-		x.closeOptionIfInProfitAndPotentiallyOpenNewOne(input);
-
+		return x;
 	}
 
 	public void addPassiveIncomeOptionProcessor(String ticker, String accountId, PassiveIncomeOptionProcessor xx) {
@@ -37,6 +45,12 @@ public class PassiveIncomeOptionProcessorChain extends BaseHandler implements Pa
 
 	private String getKey(String ticker, String accountId) {
 		return ticker + " -> " + accountId;
+	}
+
+	@Override
+	public boolean processSpreads(ProcessSpreadsInput input) {
+		PassiveIncomeOptionProcessor x = getPassiveIncomeOptionProcessor(input);
+		return x.processSpreads(input);
 	}
 
 }
