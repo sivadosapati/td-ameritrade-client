@@ -13,7 +13,7 @@ public class PassiveIncomeStrategyTest {
 		scanner.start();
 
 	}
-
+	
 }
 
 class Scanner extends Thread {

@@ -3,6 +3,7 @@ package com.rise.trading.options;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import com.rise.trading.options.PassiveIncomeStrategy.Ticker;
 import com.studerw.tda.client.HttpTdaClient;
 import com.studerw.tda.model.account.Duration;
 import com.studerw.tda.model.account.Instrument.AssetType;
@@ -26,8 +28,97 @@ import com.studerw.tda.model.account.Position;
 import com.studerw.tda.model.account.SecuritiesAccount;
 import com.studerw.tda.model.account.Session;
 import com.studerw.tda.model.account.Status;
+import com.studerw.tda.model.option.Option;
+import com.studerw.tda.model.option.OptionChain;
 
 public class BaseHandler {
+
+	public static void main(String args[]) throws Exception {
+		displayPositions();
+	}
+
+	public Order getWorkingOrderForSpreadIfPresent(List<Order> orders, Ticker ticker, int quantity,
+			OptionInstrument.PutCall putCall, OrderType orderType, OrderLegCollection.Instruction instruction) {
+		if (orders == null)
+			return null;
+		if (orders.size() == 0)
+			return null;
+		for (Order o : orders) {
+			// System.out.println("Working Order -> " + Util.toJSON(o));
+			if (o.getQuantity().intValue() == quantity && o.getOrderType() == orderType) {
+				List<OrderLegCollection> olc = o.getOrderLegCollection();
+				if (olc.size() == 2) {
+					OrderLegCollection one = olc.get(0);
+					OptionInstrument a = (OptionInstrument) one.getInstrument();
+					if (a.getPutCall() == putCall && one.getInstruction() == instruction
+							&& a.getUnderlyingSymbol().equals(ticker.ticker)) {
+						return o;
+					}
+				}
+			}
+		}
+		return null;
+
+	}
+
+	private static void displayPositions() throws Exception {
+		PositionsHandler h = new PositionsHandler();
+		GroupedPositions gps = h.getGroupedPositionsWithCurrentStockPrice(Util.getAccountId4());
+		for (GroupedPosition gp : gps.getGroupedPositions()) {
+			Position p = gp.getEquity();
+			if (p == null)
+				continue;
+			// System.out.println(gp.getSymbol()+ " -> "+Util.toJSON(p));
+			// System.out.println("--------------");
+			int x = p.getLongQuantity().intValue();
+			if (x < 100)
+				continue;
+			double avg = p.getAveragePrice().doubleValue();
+			System.out.println("--------------");
+			System.out.println(gp.getSymbol() + " -> " + x + " -> " + avg + " -> " + gp.getCurrentStockPrice());
+			LocalDateTime now = LocalDateTime.now();
+			OptionChain oc = Util.getOptionChain(gp.getSymbol(), now, now.plusDays(60));
+			getFirstOptionThatCanReturnPercentReturn(oc, Math.max(avg, gp.getCurrentStockPrice().doubleValue()),1);
+		}
+
+	}
+	
+	public Option getPossibleOptionThatCanReturnPercentReturn(String ticker, Double priceBegin, Double percentageReturn, LocalDateTime start, LocalDateTime end) {
+		OptionChain oc = Util.getOptionChain(ticker, start, end);
+		return getFirstOptionThatCanReturnPercentReturn(oc, priceBegin, percentageReturn);
+	}
+
+	private static Option getFirstOptionThatCanReturnPercentReturn(OptionChain oc, double avg, double percentage) {
+		Map<String, Map<BigDecimal, List<Option>>> optionMap = oc.getCallExpDateMap();
+		for (Map.Entry<String, Map<BigDecimal, List<Option>>> e : optionMap.entrySet()) {
+			String key = e.getKey();
+			Map<BigDecimal, List<Option>> value = e.getValue();
+			// System.out.println(key);
+			for (Map.Entry<BigDecimal, List<Option>> ee : value.entrySet()) {
+				BigDecimal k = ee.getKey();
+				if (k.doubleValue() < avg) {
+					continue;
+				}
+				if (k.doubleValue() > avg + 5) {
+					continue;
+				}
+				List<Option> v = ee.getValue();
+
+				for (Option o : v) {
+					double ask = o.getBidPrice().doubleValue();
+					if (ask < avg * 0.01 * percentage)
+						continue;
+					// System.out.println("\t\t"+Util.toJSON(o));
+					System.out.println(key);
+					System.out.println("\t" + k);
+					System.out.println("\t\t " + o.getSymbol() + " -> " + o.getBidPrice() + " -> " + o.getAskPrice());
+					return o;
+				}
+			}
+		}
+		return null;
+
+	}
 
 	public HttpTdaClient getClient() {
 		return Util.getHttpTDAClient();
@@ -102,10 +193,10 @@ public class BaseHandler {
 		final SecuritiesAccount account = getClient().getAccount(accountId, true, true);
 		// System.out.println(account.);
 		List<Position> positions = account.getPositions();
-		
+
 		// System.out.println(positions);
 		GroupedPositions gp = new GroupedPositions(positions);
-		
+
 		return gp;
 
 	}
@@ -302,7 +393,8 @@ public class BaseHandler {
 			olc.setQuantity(new BigDecimal(longQuantity));
 			olc.setInstruction(Instruction.SELL_TO_CLOSE);
 			if (marketValue / longQuantity < 1) {
-				System.out.println("Don't close the position " + oi.getSymbol() + " as the value is less than $0.01");
+				// System.out.println("Don't close the position " + oi.getSymbol() + " as the
+				// value is less than $0.01");
 				return;
 			}
 
@@ -321,7 +413,7 @@ public class BaseHandler {
 		instrument.setOptionDeliverables(null);
 		olc.setInstrument(instrument);
 		// LOGGER.debug(order.toString());
-		System.out.println(Util.toJSON(order));
+		System.out.println("closeOptionPositionAtMarketPrice -> " + Util.toJSON(order));
 		getClient().placeOrder(accountId, order);
 
 	}

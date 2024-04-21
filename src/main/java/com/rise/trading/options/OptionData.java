@@ -7,10 +7,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.TreeSet;
 
-import org.joda.time.Days;
-
 import com.studerw.tda.model.account.OptionInstrument;
 import com.studerw.tda.model.account.OptionInstrument.PutCall;
+import com.studerw.tda.model.account.Position;
 
 public class OptionData {
 	public String stockTicker;
@@ -23,7 +22,39 @@ public class OptionData {
 
 	int quantity;
 	public String symbol;
-	
+
+	public Position position;
+
+	public int getAbsoluteQuantity() {
+		return Math.abs(quantity);
+	}
+
+	private Integer adjustableQuantity = null;
+
+	public void setAdjustableQuantity(int x) {
+		this.adjustableQuantity = x;
+	}
+
+	public int getAdjustableQuantity() {
+		if( adjustableQuantity == null) {
+			adjustableQuantity = getAbsoluteQuantity();
+		}
+		return adjustableQuantity;
+	}
+
+	public Boolean isLong() {
+		if (position == null)
+			return null;
+		if (position.getLongQuantity().intValue() > 0) {
+			return true;
+		}
+		return false;
+	}
+
+	public String getTickerAndExpiryDateKey() {
+		return stockTicker + ":" + date;
+	}
+
 	public static void main(String args[]) {
 		OptionData od = OptionSymbolParser.parse("SPY_031924P210");
 		System.out.println(od.getDaysToExpiry());
@@ -179,7 +210,7 @@ public class OptionData {
 	}
 
 	public String makePossibleProtectionLongOption(Double currentStockPrice, double percentageDeviation) {
-		Double dp =  findPickableStockPrice(currentStockPrice, percentageDeviation);
+		Double dp = findPickableStockPrice(currentStockPrice, percentageDeviation);
 		double p = dp.doubleValue();
 		String s = convert(p);
 		return s;
@@ -214,7 +245,17 @@ public class OptionData {
 	public int getDaysToExpiry() {
 		LocalDate ld = LocalDate.now();
 		LocalDate exp = getDateTime().toLocalDate();
-		int daysBetween = (int)ChronoUnit.DAYS.between(ld, exp);
+		int daysBetween = (int) ChronoUnit.DAYS.between(ld, exp);
 		return daysBetween;
 	}
+
+	public void setPosition(Position p) {
+		this.position = p;
+
+	}
+
+	public Position getPosition() {
+		return position;
+	}
+
 }

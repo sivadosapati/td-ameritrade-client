@@ -20,19 +20,21 @@ public class OptionSymbolParser {
 	public static OptionData parse(Position p) {
 		String symbol = ((OptionInstrument) p.getInstrument()).getSymbol();
 		OptionData od = parse(symbol);
+		od.setPosition(p);
 		int x = p.getLongQuantity().intValue();
-		if( x != 0) {
+		if (x != 0) {
 			od.setQuantity(x);
-			return od;
+
+		} else {
+			od.setQuantity(-1 * p.getShortQuantity().intValue());
 		}
-		od.setQuantity(-1* p.getShortQuantity().intValue());
 		return od;
 	}
 
 	public static OptionData parse(String symbol) {
 		// Define the regex pattern for parsing the option symbol
 		// String regex = "([A-Z]+)_(\\d{6})([PC])([0-9]+\\.[0-9]+)";
-		//String regex = "([A-Z]+)_(\\d{6})([PC])(\\d+(?:\\.\\d+)?)";
+		// String regex = "([A-Z]+)_(\\d{6})([PC])(\\d+(?:\\.\\d+)?)";
 		String regex = ("([A-Za-z0-9]+)_(\\d{6})([CP])(\\d+\\.?\\d*)");
 
 		Pattern pattern = Pattern.compile(regex);
@@ -45,8 +47,8 @@ public class OptionSymbolParser {
 			String putOrCall = matcher.group(3);
 			BigDecimal price = new BigDecimal(matcher.group(4));
 
-			OptionData od =  new OptionData(stockTicker, date, putOrCall, price);
-			
+			OptionData od = new OptionData(stockTicker, date, putOrCall, price);
+
 			od.symbol = symbol;
 			return od;
 		} else {

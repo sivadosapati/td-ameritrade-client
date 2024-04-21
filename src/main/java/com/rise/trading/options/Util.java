@@ -368,6 +368,7 @@ public class Util {
 		Order o = new Order();
 		o.setSession(Session.NORMAL);
 		o.setComplexOrderStrategyType(ComplexOrderStrategyType.NONE);
+		o.setOrderStrategyType(OrderStrategyType.SINGLE);
 		o.setDuration(Duration.DAY);
 		o.setOrderType(OrderType.MARKET);
 		OrderLegCollection olc = new OrderLegCollection();
@@ -446,6 +447,12 @@ public class Util {
 		Order oo = makeOption(o.getSymbol(), quantity, d, price, pc, type, i);
 
 		return oo;
+	}
+	
+	public static double rnd(double aa) {
+		BigDecimal a = new BigDecimal(aa);
+		BigDecimal roundOff = a.setScale(2, BigDecimal.ROUND_HALF_EVEN);
+		return roundOff.doubleValue();
 	}
 
 	public static OptionChainReq makeOptionChainRequest(String symbol, LocalDateTime from, LocalDateTime to) {
@@ -791,7 +798,7 @@ public class Util {
 		for (Map.Entry<BigDecimal, List<Option>> e : optionsMap.entrySet()) {
 			BigDecimal price = e.getKey();
 			Option o = e.getValue().iterator().next();
-			if (price.intValue() == bd.intValue()) {
+			if (price.floatValue() == bd.floatValue()) {
 				return o;
 			}
 

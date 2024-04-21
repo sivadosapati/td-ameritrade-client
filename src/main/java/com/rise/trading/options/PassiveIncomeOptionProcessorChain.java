@@ -10,7 +10,7 @@ public class PassiveIncomeOptionProcessorChain extends BaseHandler implements Pa
 	private PassiveIncomeOptionProcessor COMMON = new PassiveIncomeStrategy();
 
 	public PassiveIncomeOptionProcessorChain() {
-		addPassiveIncomeOptionProcessor("TQQQ", new PassiveIncomeLongStrategy());
+		//addPassiveIncomeOptionProcessor("TQQQ", new PassiveIncomeLongStrategy());
 	}
 
 	@Override

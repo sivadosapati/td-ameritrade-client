@@ -151,4 +151,12 @@ public class GroupedPositions {
 		boolean matches(String x);
 	}
 
+	public Map<String, Double> getCurrentEquityPrices() {
+		Map<String,Double> prices = new HashMap<String,Double>();
+		for( GroupedPosition x : this.getGroupedPositions()) {
+			prices.put(x.getSymbol(), x.getCurrentStockPrice());
+		}
+		return prices;
+	}
+
 }

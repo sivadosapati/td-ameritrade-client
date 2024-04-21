@@ -14,6 +14,20 @@ public class PassiveIncomeOptionProcessorInput {
 	public OptionPositions optionPositions;
 
 	private OptionData optionData = null;
+	
+	private String printableMessage = null;
+	public void setPrintableMessage(String printableMessage) {
+		this.printableMessage = printableMessage;
+	}
+	
+	public String getPrintableMessage() {
+		return printableMessage;
+	}
+
+	public String getPrintableString() {
+		return accountId + "," + ticker + "," + currentStockPrice + "," + new java.util.Date() + ","
+				+ Util.toJSON(position);
+	}
 
 	public OptionInstrument.PutCall getPutCall() {
 		OptionInstrument oi = (OptionInstrument) position.getInstrument();
@@ -30,7 +44,7 @@ public class PassiveIncomeOptionProcessorInput {
 		xx.optionPositions = op;
 		return xx;
 	}
-	
+
 	public void setOptionData(OptionData od) {
 		this.optionData = od;
 	}
