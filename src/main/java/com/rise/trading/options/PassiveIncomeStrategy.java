@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
 
 import com.rise.trading.options.symbols.OptionSymbolManager;
 import com.rise.trading.options.symbols.OptionSymbolWithAdjacents;
@@ -39,6 +40,8 @@ import com.studerw.tda.model.option.OptionChain;
 import com.studerw.tda.model.option.OptionChainReq;
 import com.studerw.tda.model.quote.Quote;
 
+import net.jodah.expiringmap.ExpiringMap;
+
 public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeOptionProcessor {
 
 	private static final int MAX_SELL_OPTION_COUNT = 50;
@@ -53,17 +56,17 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 	// Arrays.asList("TQQQ", "IWM", "SPY", "AMD");
 
 	private List<String> skippedSymbols = Arrays.asList("SOLO", "WKHS", "XOS", "CRBP", "QQQ");
+	private static String[] accounts = { Util.getAccountId1(), Util.getAccountId6(), Util.getAccountId7(),
+			Util.getAccountId4(), Util.getAccountId2(), Util.getAccountId3() };
 
 	public static void main(String args[]) {
 		final PassiveIncomeStrategy pis = new PassiveIncomeStrategy();
-
-		pis.closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(Util.getAccountId1());
+		for (String a : accounts) {
+			pis.closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(a);
+			// pis.closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(a);
+		}
 		// placeSomeMoreTrades(pis);
 
-	}
-
-	private void displaySpreads(String accountId) {
-		GroupedPositions gp = getGroupedPositions(accountId);
 	}
 
 	private static PassiveIncomeOptionProcessorChain makePassiveIncomeProcessorChain() {
@@ -536,6 +539,7 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 
 	public void closeOptionsThatAreInProfitAndPotentiallyOpenNewOnes(String accountId) {
 		GroupedPositions gps = getGroupedPositionsWithCurrentStockPrice(accountId);
+		gps.setCurrentWorkingOrders(getCurrentWorkingOrders(accountId));
 		Map<String, Double> prices = gps.getCurrentEquityPrices();
 		System.out.println("Account Id : -> " + accountId + " : Prices -> " + prices);
 		stripSkippedSymbols(gps);
@@ -547,7 +551,7 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 		// Util.toJSON(op));
 		closeOptionPositionsIfInProfit(accountId, gps, op, prices);
 
-		// closeEquitiesWhenInProfit(accountId, gps);
+		closeEquitiesWhenInProfit(accountId, gps);
 
 		placeCoveredCallsForEquities(accountId, gps, op);
 	}
@@ -585,9 +589,12 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 		for (GroupedPosition gp : gps.getGroupedPositions()) {
 			ProcessSpreadsInput input = makeProcessSpreadsInput(gp);
 			boolean b = chain.processSpreads(input);
-			if( b == true) {
+			if (b == true) {
+				System.out.println("Processed Spreads for -> " + gp.getSymbol() + " -> " + gp.getAccountId());
 				continue;
 			}
+			// System.out.println("Processing Option Positions -> " + gp.getSymbol() + " ->
+			// " + gp.getAccountId());
 			processOptionPositions(accountId, op, prices, gp);
 		}
 	}
@@ -700,11 +707,9 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 		}
 	}
 
-	protected void workOnEquity(String accountId, GroupedPosition gp, Position p) {
-		if (!Util.canAccountBeUsedForSellingEquities(accountId)) {
-			return;
-		}
+	private Map<String, String> kidsEquityClosures = ExpiringMap.builder().expiration(1, TimeUnit.DAYS).build();
 
+	protected void workOnEquity(String accountId, GroupedPosition gp, Position p) {
 		// System.out.println("Equity Position -> " + Util.toJSON(gp));
 		EquityInstrument ei = (EquityInstrument) p.getInstrument();
 		double purchaseAvgPrice = p.getAveragePrice().doubleValue();
@@ -714,10 +719,16 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 		if (longQuantity > 0) {
 			double purchaseValue = longQuantity * purchaseAvgPrice;
 			if (marketValue > purchaseValue * 1.01d) {
-				Order o = Util.makeStockOrder(ei.getSymbol(), new BigDecimal(marketValue / longQuantity),
-						(int) longQuantity, Instruction.SELL, OrderType.MARKET);
-				// System.out.println("Selling Equity -> " + Util.toJSON(o));
-				getClient().placeOrder(accountId, o);
+
+				if (Util.isAccountForKids(accountId)) {
+					closeEquityForKids(accountId, gp, ei, marketValue, longQuantity, purchaseValue);
+				} else {
+					Order o = Util.makeStockOrder(ei.getSymbol(), new BigDecimal(marketValue / longQuantity),
+							(int) longQuantity, Instruction.SELL, OrderType.MARKET);
+					System.out.println("Selling Equity -> " + Util.toJSON(o));
+					getClient().placeOrder(accountId, o);
+				}
+
 				return;
 			}
 		}
@@ -728,12 +739,38 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 			if (marketValue < purchaseValue * 0.99d) {
 				Order o = Util.makeStockOrder(ei.getSymbol(), new BigDecimal(marketValue / shortQuantity),
 						(int) shortQuantity, Instruction.BUY_TO_COVER, OrderType.MARKET);
-				// System.out.println("Selling Equity -> " + Util.toJSON(o));
-				getClient().placeOrder(accountId, o);
+				System.out.println("Selling Equity -> " + Util.toJSON(o));
+				// getClient().placeOrder(accountId, o);
 				return;
 			}
 		}
 
+	}
+
+	private void closeEquityForKids(String accountId, GroupedPosition gp, EquityInstrument ei, double marketValue,
+			double longQuantity, double purchaseValue) {
+		if (marketValue > purchaseValue * 1.25d) {
+			String key = accountId + ":" + gp.getSymbol();
+			if (kidsEquityClosures.containsKey(key)) {
+				System.out.println("Not closing -> " + key + " because it was already sold today");
+			} else {
+				kidsEquityClosures.put(key, key);
+				Order o = Util.makeStockOrder(ei.getSymbol(), new BigDecimal(marketValue / longQuantity), 1,
+						Instruction.SELL, OrderType.MARKET);
+				System.out.println("Selling Kids Equity -> " + Util.toJSON(o));
+				getClient().placeOrder(accountId, o);
+				o = Util.makeStockOrder(ei.getSymbol(),
+						new BigDecimal(Util.rnd(gp.getCurrentStockPrice() * 0.90)), 1, Instruction.BUY,
+						OrderType.LIMIT);
+
+				o.setDuration(Duration.GOOD_TILL_CANCEL);
+				o = Util.makeOrderForBuyingStockAtLimitPrice(ei.getSymbol(),
+						Util.rnd(gp.getCurrentStockPrice() * 0.90), 1);
+				;
+				System.out.println("Place a buy order -> " + Util.toJSON(o));
+				getClient().placeOrder(accountId, o);
+			}
+		}
 	}
 
 	protected void findPossibleCoveredCallsAndSellCallsOnThem(String accountId, GroupedPosition gp, Position p) {
@@ -973,8 +1010,9 @@ public class PassiveIncomeStrategy extends BaseHandler implements PassiveIncomeO
 		return 0.05d * multiply;
 	}
 
-	private Map<String, String> purchaseSellCallOrPutMapFor15Mins = new SelfExpiringHashMap<String, String>(
-			1000 * 60 * 15);
+	private Map<String, String> purchaseSellCallOrPutMapFor15Mins = ExpiringMap.builder()
+			.expiration(15, TimeUnit.MINUTES) // Set expiration time
+			.build();
 
 	@Override
 	public void closeOptionIfInProfitAndPotentiallyOpenNewOne(PassiveIncomeOptionProcessorInput input) {

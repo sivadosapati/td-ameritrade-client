@@ -78,12 +78,13 @@ public class BaseHandler {
 			System.out.println(gp.getSymbol() + " -> " + x + " -> " + avg + " -> " + gp.getCurrentStockPrice());
 			LocalDateTime now = LocalDateTime.now();
 			OptionChain oc = Util.getOptionChain(gp.getSymbol(), now, now.plusDays(60));
-			getFirstOptionThatCanReturnPercentReturn(oc, Math.max(avg, gp.getCurrentStockPrice().doubleValue()),1);
+			getFirstOptionThatCanReturnPercentReturn(oc, Math.max(avg, gp.getCurrentStockPrice().doubleValue()), 1);
 		}
 
 	}
-	
-	public Option getPossibleOptionThatCanReturnPercentReturn(String ticker, Double priceBegin, Double percentageReturn, LocalDateTime start, LocalDateTime end) {
+
+	public Option getPossibleOptionThatCanReturnPercentReturn(String ticker, Double priceBegin, Double percentageReturn,
+			LocalDateTime start, LocalDateTime end) {
 		OptionChain oc = Util.getOptionChain(ticker, start, end);
 		return getFirstOptionThatCanReturnPercentReturn(oc, priceBegin, percentageReturn);
 	}
@@ -368,8 +369,7 @@ public class BaseHandler {
 
 	List<String> tickersThatTradeAfterHoursForOptions = Arrays.asList("QQQ", "SPY", "IWM");
 
-	public void closeOptionPositionAtMarketPrice(String accountId, Position position,
-			PassiveIncomeOptionProcessorInput input) {
+	public void closeOptionPositionAtMarketPrice(String accountId, Position position, PassiveIncomeInput input) {
 		// BigDecimal callQuantity = new
 		// BigDecimal(gp.getNumberOfPotentialCoveredCallContracts());
 
@@ -380,8 +380,10 @@ public class BaseHandler {
 		order.setSession(Session.NORMAL);
 		order.setDuration(Duration.GOOD_TILL_CANCEL);
 		// order.setQuantity(callQuantity);
-		int longQuantity = position.getLongQuantity().intValue();
-		int shortQuantity = position.getShortQuantity().intValue();
+		int longQuantity = input.getOverrideLongQuantity() == null ? position.getLongQuantity().intValue()
+				: input.getOverrideLongQuantity();
+		int shortQuantity = input.getOverrideShortQuantity() == null ? position.getShortQuantity().intValue()
+				: input.getOverrideShortQuantity();
 		order.setOrderStrategyType(OrderStrategyType.SINGLE);
 		// order.setComplexOrderStrategyType(ComplexOrderStrategyType.NONE);
 

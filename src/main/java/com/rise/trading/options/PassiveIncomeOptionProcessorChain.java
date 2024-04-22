@@ -14,6 +14,11 @@ public class PassiveIncomeOptionProcessorChain extends BaseHandler implements Pa
 		PassiveIncomeSpreadProcessorStrategy spreads = new PassiveIncomeSpreadProcessorStrategy();
 		addPassiveIncomeOptionProcessor("AMD", spreads);
 		addPassiveIncomeOptionProcessor("QQQ", spreads);
+		//addPassiveIncomeOptionProcessor("SPY", spreads);
+		addPassiveIncomeOptionProcessor("AFRM", spreads);
+		//addPassiveIncomeOptionProcessor("IWM", spreads);
+		//addPassiveIncomeOptionProcessor("QQQ", spreads);
+		//addPassiveIncomeOptionProcessor("TQQQ", spreads);
 	}
 
 	@Override

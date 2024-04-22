@@ -3,12 +3,40 @@ package com.rise.trading.options;
 import com.studerw.tda.model.account.Position;
 
 public class Spread {
-	public String putOrCall;
-	public String ticker;
-	public String date;
-	public OptionData longPosition;
-	public OptionData shortPosition;
-	public int quantity;
+	public String getPutOrCall() {
+		return putOrCall;
+	}
+
+	public void setPutOrCall(String putOrCall) {
+		this.putOrCall = putOrCall;
+	}
+
+	public String getTicker() {
+		return ticker;
+	}
+
+	public void setTicker(String ticker) {
+		this.ticker = ticker;
+	}
+
+	public String getDate() {
+		return date;
+	}
+
+	public void setDate(String date) {
+		this.date = date;
+	}
+
+	public void setQuantity(int quantity) {
+		this.quantity = quantity;
+	}
+
+	private String putOrCall;
+	private String ticker;
+	private String date;
+	private OptionData longPosition;
+	private OptionData shortPosition;
+	private int quantity;
 
 	public String toSpreadString() {
 		return shortPosition.getOptionSymbol() + "[" + shortPosition.getAbsoluteQuantity() + "]:"
@@ -127,5 +155,34 @@ public class Spread {
 			setShortPosition(od);
 		}
 
+	}
+
+	public int getQuantity() {
+		return quantity;
+	}
+
+	public Position getShortPosition() {
+		return shortPosition.getPosition();
+	}
+
+	public Position getLongPosition() {
+		return longPosition.getPosition();
+	}
+
+	public boolean matchesAlternateSpread(Spread spread) {
+		if( spread == null) {
+			return false;
+		}
+		if( !this.getTicker().equals(spread.getTicker())) {
+			return false;
+		}
+		if( !this.getDate().equals(spread.getDate())) {
+			return false;
+		}
+		if( !this.getPutOrCall().equals(spread.getPutOrCall())) {
+			return false;
+		}
+		
+		return true;
 	}
 }

@@ -26,7 +26,7 @@ public class SpreadsProcessor {
 
 		}
 	}
-	
+
 	public Spreads makeSpreads(GroupedPosition x) {
 		Spreads spreads = new Spreads();
 		List<Position> p = x.getOptions();
@@ -37,15 +37,15 @@ public class SpreadsProcessor {
 	}
 
 	public Spreads makeSpreads(List<Position> positions) {
-		Spreads s = null;
+
 		Map<String, List<OptionData>> optionPositions = new HashMap<String, List<OptionData>>();
 		for (Position p : positions) {
 			OptionData od = OptionSymbolParser.parse(p);
 			addToMap(od, optionPositions);
 
 		}
-		s = makeSpreads(optionPositions);
-		return s;
+		return makeSpreads(optionPositions);
+
 	}
 
 	private Spreads makeSpreads(Map<String, List<OptionData>> optionPositions) {
@@ -82,23 +82,24 @@ public class SpreadsProcessor {
 			if (longs.size() == 0 || shorts.size() == 0) {
 				return spreads;
 			}
-			
+
 			OptionData[] sc = (OptionData[]) shorts.toArray(new OptionData[0]);
 			OptionData[] lc = (OptionData[]) longs.toArray(new OptionData[0]);
-			//System.out.println(sc.length + " -> "+lc.length);
+			// System.out.println(sc.length + " -> "+lc.length);
 			int shortCounter = 0;
-			
-			for (; ;) {
+
+			for (;;) {
 				if (shortCounter == sc.length)
 					break;
 				OptionData sh = sc[shortCounter];
 				OptionData ln = getNearestOptionDataForShort(sh, lc);
 				Spread spread = makeSpread(sh, ln);
-			
-				if( sh.getAdjustableQuantity() <=0) {
+
+				if (sh.getAdjustableQuantity() <= 0) {
 					shortCounter++;
 				}
-				//System.out.println(ln.getAdjustableQuantity()+" : "+sh.getAdjustableQuantity());
+				// System.out.println(ln.getAdjustableQuantity()+" :
+				// "+sh.getAdjustableQuantity());
 				spreads.addSpread(spread);
 
 			}

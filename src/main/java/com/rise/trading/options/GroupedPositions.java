@@ -7,16 +7,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.studerw.tda.client.HttpTdaClient;
 import com.studerw.tda.model.account.CashEquivalentInstrument;
 import com.studerw.tda.model.account.EquityInstrument;
 import com.studerw.tda.model.account.Instrument;
 import com.studerw.tda.model.account.OptionInstrument;
 import com.studerw.tda.model.account.OptionInstrument.PutCall;
+import com.studerw.tda.model.account.Order;
 import com.studerw.tda.model.account.Position;
 
 public class GroupedPositions {
 	private Map<String, GroupedPosition> groupedPositions = new HashMap<String, GroupedPosition>();
+
+	private List<Order> currentWorkingOrders = null;
+
+	public List<Order> getCurrentWorkingOrders() {
+		return currentWorkingOrders;
+	}
+
+	public void setCurrentWorkingOrders(List<Order> currentWorkingOrders) {
+		this.currentWorkingOrders = currentWorkingOrders;
+	}
 
 	public Collection<GroupedPosition> getGroupedPositions() {
 		return groupedPositions.values();
@@ -132,14 +142,12 @@ public class GroupedPositions {
 
 	}
 
-	
-
 	public Position getOptionPositionIfExisting(String optionSymbol) {
-		for( GroupedPosition x : this.getGroupedPositions()) {
+		for (GroupedPosition x : this.getGroupedPositions()) {
 			List<Position> list = x.getOptions();
-			for( Position p : list) {
+			for (Position p : list) {
 				String s = p.getInstrument().getSymbol();
-				if( s.equals(optionSymbol)) {
+				if (s.equals(optionSymbol)) {
 					return p;
 				}
 			}
@@ -152,8 +160,8 @@ public class GroupedPositions {
 	}
 
 	public Map<String, Double> getCurrentEquityPrices() {
-		Map<String,Double> prices = new HashMap<String,Double>();
-		for( GroupedPosition x : this.getGroupedPositions()) {
+		Map<String, Double> prices = new HashMap<String, Double>();
+		for (GroupedPosition x : this.getGroupedPositions()) {
 			prices.put(x.getSymbol(), x.getCurrentStockPrice());
 		}
 		return prices;

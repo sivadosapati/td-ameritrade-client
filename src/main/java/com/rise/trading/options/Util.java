@@ -105,6 +105,10 @@ public class Util {
 		return true;
 	}
 
+	public static boolean isAccountForKids(String accountId) {
+		return !canAccountBeUsedForSellingEquities(accountId);
+	}
+
 	public static String getEODToken() {
 		return props.getProperty("eod.api.token");
 	}
@@ -448,7 +452,7 @@ public class Util {
 
 		return oo;
 	}
-	
+
 	public static double rnd(double aa) {
 		BigDecimal a = new BigDecimal(aa);
 		BigDecimal roundOff = a.setScale(2, BigDecimal.ROUND_HALF_EVEN);
@@ -519,18 +523,18 @@ public class Util {
 
 	private static Boolean getMarketOpenForDate(String x) {
 		Boolean b = marketOpenForOptions.get(x);
-		if( b == null) {
+		if (b == null) {
 			Hours hours = getMarketHourForOptions();
 			Boolean bb = hours.getIsOpen();
 			marketOpenForOptions.put(hours.getDate(), bb);
-			
+
 		}
 		return b;
 	}
-	
+
 	public static boolean notMarketHoursForTradingOptions() {
 		LocalDate date = LocalDate.now();
-		
+
 		if (date.getDayOfWeek() == DayOfWeek.SATURDAY) {
 			return false;
 
@@ -538,11 +542,11 @@ public class Util {
 		if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
 			return false;
 		}
-		//String yyyyMMdd = date.toString();
-		//Boolean b = getMarketOpenForDate(yyyyMMdd);
-		//if( b == false) {
-			//return false;
-		//}
+		// String yyyyMMdd = date.toString();
+		// Boolean b = getMarketOpenForDate(yyyyMMdd);
+		// if( b == false) {
+		// return false;
+		// }
 		LocalTime time = LocalTime.now();
 
 		// System.out.println(time.getHour());
@@ -629,7 +633,8 @@ public class Util {
 		order.setSession(Session.NORMAL);
 		order.setDuration(Duration.DAY);
 		order.setQuantity(quantity);
-		order.setPrice(price);
+		if (orderType != OrderType.MARKET)
+			order.setPrice(price);
 		if (orderType == OrderType.STOP_LIMIT) {
 			order.setStopPrice(price);
 		}
