@@ -16,6 +16,7 @@ import java.util.TreeSet;
 import com.rise.trading.options.PassiveIncomeStrategy.Ticker;
 import com.studerw.tda.client.HttpTdaClient;
 import com.studerw.tda.model.account.Duration;
+import com.studerw.tda.model.account.Instrument;
 import com.studerw.tda.model.account.Instrument.AssetType;
 import com.studerw.tda.model.account.OptionInstrument;
 import com.studerw.tda.model.account.Order;
@@ -370,6 +371,13 @@ public class BaseHandler {
 	List<String> tickersThatTradeAfterHoursForOptions = Arrays.asList("QQQ", "SPY", "IWM");
 
 	public void closeOptionPositionAtMarketPrice(String accountId, Position position, PassiveIncomeInput input) {
+		List<Order> currentWorkingOrders = input.getCurrentWorkingOrders();
+		Order oo = getWorkingOrderHavingPositionIfExists(currentWorkingOrders, position);
+		if (oo != null) {
+			System.out.println("BaseHandler->closeOptionPositionAtMarketPrice -> Can't close the option position -> "+Util.toJSON(position)+", as we have a working order -> " + Util.toJSON(oo));
+			return;
+		}
+
 		// BigDecimal callQuantity = new
 		// BigDecimal(gp.getNumberOfPotentialCoveredCallContracts());
 
@@ -418,6 +426,35 @@ public class BaseHandler {
 		System.out.println("closeOptionPositionAtMarketPrice -> " + Util.toJSON(order));
 		getClient().placeOrder(accountId, order);
 
+	}
+
+	private Order getWorkingOrderHavingPositionIfExists(List<Order> workingOrders, Position position) {
+		if (workingOrders == null) {
+			return null;
+		}
+		for (Order o : workingOrders) {
+			if (isOrderAlignedToPosition(o, position)) {
+				return o;
+			}
+		}
+		return null;
+	}
+
+	private boolean isOrderAlignedToPosition(Order o, Position position) {
+		String ps = position.getInstrument().getSymbol();
+		List<OrderLegCollection> olc = o.getOrderLegCollection();
+		if (olc.size() == 1) {
+			OrderLegCollection x = olc.get(0);
+			Instrument i = x.getInstrument();
+			if (i instanceof OptionInstrument) {
+				OptionInstrument oi = (OptionInstrument) i;
+				if (oi.getSymbol().equals(ps)) {
+					return true;
+				}
+
+			}
+		}
+		return false;
 	}
 
 	protected Order createClosingOrder(Position position, double closingPriceForLongPosition,

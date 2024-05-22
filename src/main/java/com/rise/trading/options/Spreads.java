@@ -67,9 +67,6 @@ public class Spreads {
 
 	public Spread getAlternateSpreadIfExisting(Spread spread) {
 		for (Spread s : spreads) {
-			if (s == spread) {
-				continue;
-			}
 			if( s.matchesAlternateSpread(spread)) {
 				return s;
 			}

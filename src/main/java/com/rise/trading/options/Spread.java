@@ -1,5 +1,7 @@
 package com.rise.trading.options;
 
+import java.time.LocalDateTime;
+
 import com.studerw.tda.model.account.Position;
 
 public class Spread {
@@ -21,6 +23,10 @@ public class Spread {
 
 	public String getDate() {
 		return date;
+	}
+
+	public LocalDateTime getLocalDateTime() {
+		return shortPosition.getDateTime();
 	}
 
 	public void setDate(String date) {
@@ -170,19 +176,54 @@ public class Spread {
 	}
 
 	public boolean matchesAlternateSpread(Spread spread) {
-		if( spread == null) {
+		if (spread == null) {
 			return false;
 		}
-		if( !this.getTicker().equals(spread.getTicker())) {
+		if (!this.getTicker().equals(spread.getTicker())) {
 			return false;
 		}
-		if( !this.getDate().equals(spread.getDate())) {
+		if (!this.getDate().equals(spread.getDate())) {
 			return false;
 		}
-		if( !this.getPutOrCall().equals(spread.getPutOrCall())) {
+		if (this.getPutOrCall().equals(spread.getPutOrCall())) {
 			return false;
 		}
-		
+
 		return true;
+	}
+
+	public double getStrikePriceForShortOption() {
+		return shortPosition.getPrice().doubleValue();
+	}
+
+	public double getStrikePriceForLongOption() {
+		return longPosition.getPrice().doubleValue();
+	}
+
+	public boolean isCall() {
+		return shortPosition.isCall();
+	}
+
+	public boolean isPut() {
+		return shortPosition.isPut();
+	}
+
+	public double findPriceForAlternateSpread(double currentStockPrice) {
+		double shortPrice = this.getStrikePriceForShortOption();
+		if (isCall()) {
+			if (currentStockPrice < shortPrice) {
+				return currentStockPrice;
+			}
+			else {
+				return shortPrice;
+			}
+		}
+		if(isPut()) {
+			if(currentStockPrice > shortPrice) {
+				return currentStockPrice;
+			}
+			return shortPrice;
+		}
+		throw new RuntimeException("Unreachable code");
 	}
 }

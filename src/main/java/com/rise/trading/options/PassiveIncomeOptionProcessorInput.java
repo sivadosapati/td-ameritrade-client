@@ -24,7 +24,9 @@ public class PassiveIncomeOptionProcessorInput extends AbstractPassiveIncomeInpu
 	}
 
 	public boolean isShort() {
-		return !optionData.isLong();
+		if (optionData != null)
+			return !optionData.isLong();
+		return false;
 	}
 
 	public String getPrintableString() {
@@ -38,13 +40,15 @@ public class PassiveIncomeOptionProcessorInput extends AbstractPassiveIncomeInpu
 	}
 
 	public static PassiveIncomeOptionProcessorInput make(Position p, String accountId, String ticker, double stockPrice,
-			OptionPositions op) {
+			OptionPositions op, GroupedPosition gp, GroupedPositions gps) {
 		PassiveIncomeOptionProcessorInput xx = new PassiveIncomeOptionProcessorInput();
 		xx.position = p;
 		xx.setAccountId(accountId);
 		xx.setStockTicker(ticker);
 		xx.currentStockPrice = stockPrice;
 		xx.optionPositions = op;
+		xx.setCurrentWorkingOrders(gps.getCurrentWorkingOrders());
+
 		return xx;
 	}
 
@@ -62,6 +66,5 @@ public class PassiveIncomeOptionProcessorInput extends AbstractPassiveIncomeInpu
 	public BigDecimal getPositionStrikePrice() {
 		return getOptionData().getPrice();
 	}
-
 
 }

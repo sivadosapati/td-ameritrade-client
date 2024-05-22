@@ -12,13 +12,11 @@ public class PassiveIncomeOptionProcessorChain extends BaseHandler implements Pa
 	public PassiveIncomeOptionProcessorChain() {
 		// addPassiveIncomeOptionProcessor("TQQQ", new PassiveIncomeLongStrategy());
 		PassiveIncomeSpreadProcessorStrategy spreads = new PassiveIncomeSpreadProcessorStrategy();
-		addPassiveIncomeOptionProcessor("AMD", spreads);
-		addPassiveIncomeOptionProcessor("QQQ", spreads);
-		//addPassiveIncomeOptionProcessor("SPY", spreads);
-		addPassiveIncomeOptionProcessor("AFRM", spreads);
-		//addPassiveIncomeOptionProcessor("IWM", spreads);
-		//addPassiveIncomeOptionProcessor("QQQ", spreads);
-		//addPassiveIncomeOptionProcessor("TQQQ", spreads);
+		String[] stocksForSpreads = new String[] {"AMD","QQQ","SPY","AFRM"};
+		for( String s : stocksForSpreads) {
+			addPassiveIncomeOptionProcessor(s, spreads);
+		}
+		
 	}
 
 	@Override
