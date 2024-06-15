@@ -2,8 +2,10 @@ package com.rise.trading.options;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.MalformedURLException;
@@ -28,6 +30,9 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.TimeZone;
 import java.util.TreeMap;
+
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rise.trading.options.symbols.OptionSymbolWithAdjacents;
@@ -63,6 +68,11 @@ public class Util {
 	private static Properties props = fetchProperties();
 	private static Accounts accounts = fetchAccounts();
 	private static HttpTdaClient httpTDAClient = null;
+
+	public static String convertHtmlToText(String html) {
+		Document document = Jsoup.parse(html);
+		return document.text();
+	}
 
 	public static void main(String args[]) {
 		HttpTdaClient httpTdaClient = getHttpTDAClient();
@@ -201,6 +211,14 @@ public class Util {
 		} else {
 			return String.valueOf(number);
 		}
+	}
+
+	public static String readContent(String file) throws Exception {
+		FileInputStream fis = new FileInputStream(file);
+		byte b[] = new byte[fis.available()];
+		fis.read(b);
+		fis.close();
+		return new String(b);
 	}
 
 	public static List<String> readLinesFromURL(String url) {
@@ -861,4 +879,27 @@ public class Util {
 
 	}
 
+	public static String getILaborUserName() {
+		return props.getProperty("ilabor.user.name");
+	}
+
+	public static String getILaborPassword() {
+		return props.getProperty("ilabor.user.password");
+	}
+
+	public static void writeContent(String file, String content) throws Exception {
+		PrintWriter writer = new PrintWriter(new FileWriter(file), true);
+		writer.print(content);
+		writer.flush();
+		writer.close();
+
+	}
+
+	public static String getDirectoryForJobs() {
+		return props.getProperty("directory.for.jobs"); 
+	}
+	
+	public static String getDownloadedDirectoryForJobs() {
+		return null;
+	}
 }
