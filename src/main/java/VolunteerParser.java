@@ -49,16 +49,22 @@ public class VolunteerParser {
 	private static final String APPLICATION_NAME = "Google Sheets API Java Quickstart";
 	private static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 	private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS_READONLY);
-	//private static final String SPREADSHEET_ID = "1-7kqYXHmKLudnKrjEIiu_iV96HNPEuwr";
-	
-	//private static final String SPREADSHEET_ID = "https://docs.google.com/spreadsheets/d/1-7kqYXHmKLudnKrjEIiu_iV96HNPEuwr/edit#gid=125219895";
-	
-	//private static String SPREADSHEET_ID ="1sILuxZUnyl_7-MlNThjt765oWshN3Xs-PPLfqYe4DhI/edit#gid=0";
-	//static String SPREADSHEET_ID = "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms";
-	static String SPREADSHEET_ID = "1clDPQd61YSCbqBM67HHzh3SaY1ymrIwBrOdVGa-vsMo";
+	// private static final String SPREADSHEET_ID =
+	// "1-7kqYXHmKLudnKrjEIiu_iV96HNPEuwr";
+
+	// private static final String SPREADSHEET_ID =
+	// "https://docs.google.com/spreadsheets/d/1-7kqYXHmKLudnKrjEIiu_iV96HNPEuwr/edit#gid=125219895";
+
+	// private static String SPREADSHEET_ID
+	// ="1sILuxZUnyl_7-MlNThjt765oWshN3Xs-PPLfqYe4DhI/edit#gid=0";
+	// static String SPREADSHEET_ID =
+	// "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms";
+	// static String SPREADSHEET_ID =
+	// "1clDPQd61YSCbqBM67HHzh3SaY1ymrIwBrOdVGa-vsMo";
+	static String SPREADSHEET_ID = "1CSEzwOMbHG7JI0Cqvyht4_cCJnQFtzGsQB51no-t10s";
 
 	public static final String CREDENTIALS_FILE_PATH = "/Users/sivad/Downloads/client_secret_google.json";
-	
+
 	public static final String CREDENTIALS = "/Users/sivad/Downloads/client_secret_766426810034-i3l577ngunu8vs0j5f9v1jte4ekq9oum.apps.googleusercontent.com.json";
 
 	private static Sheets getSheetsServiceOld() throws IOException, GeneralSecurityException {
@@ -84,105 +90,143 @@ public class VolunteerParser {
 
 		// Get all sheet names
 		Spreadsheet spreadsheet = service.spreadsheets().get(SPREADSHEET_ID).execute();
-		//sspreadsheet = service.spreadsheets().get
-		
+		// sspreadsheet = service.spreadsheets().get
+
 		List<Sheet> sheets = spreadsheet.getSheets();
 
 		List<List<Object>> combinedData = new ArrayList<>();
 		int count = 0;
 		List<Group> groups = new ArrayList<Group>();
 		for (Sheet sheet : sheets) {
-			if(count == 0) {
+			if (count == 0) {
 				count++;
 				continue;
 			}
 			String sheetName = sheet.getProperties().getTitle();
-			//String range = sheetName + "!B:B,D:D";
-			String range = sheetName+"!A2:G";
+			// String range = sheetName + "!B:B,D:D";
+			String range = sheetName + "!A2:G";
 
 			ValueRange response = service.spreadsheets().values().get(SPREADSHEET_ID, range).execute();
 
 			List<List<Object>> values = response.getValues();
-			
+
 			for (List<Object> row : values) {
 				if (row.size() >= 4) {
 					List<Object> filteredRow = new ArrayList<>();
-					String name = row.get(1)+"".trim();
-					String phone = row.get(3)+"".trim();
-					if( name.equals("") || phone.equals("")) {
+					String name = SheetsQuickStart.capitalize(row.get(1) + "".trim());
+					name = cleanName(name);
+					String phone = row.get(3) + "".trim();
+					if (name.equals("") || phone.equals("")) {
 						continue;
 					}
-					if( name.equals("Full Name")) {
+					if (name.equals("Full Name")) {
 						continue;
 					}
 					phone = cleanPhone(phone);
 					filteredRow.add(name); // 2nd column (B)
 					filteredRow.add(phone); // 4th column (D)
-					System.out.println(sheetName+","+name+","+phone);
+					// System.out.println(name+","+phone+","+sheetName);
 					addToGroup(sheetName, name, phone, groups);
 					combinedData.add(filteredRow);
 				}
 			}
 		}
 		
-		System.out.println("-------------");
+	
+
+		// System.out.println("-------------");
 
 		// Sort combined data based on the 2nd column (B) in descending order
 		combinedData.sort(Comparator.comparing(o -> o.get(0).toString(), Comparator.reverseOrder()));
 
 		// Print the sorted data
 		for (List<Object> row : combinedData) {
-			System.out.printf("%s, %s%n", row.get(0), row.get(1));
+			// System.out.printf("%s, %s%n", row.get(0), row.get(1));
 		}
-		System.out.println("*********************");
-		for( Group g: groups) {
+		// System.out.println("*********************");
+		Collections.sort(groups, Group.GroupComparator);
+		for (Group g : groups) {
 			System.out.println(g.toString());
 		}
 	}
 	
+	private static String cleanName(String name) {
+		return name.replace("(Co-Chair)","").replace(("(co-chair)"), "").replace(("(Chair)"), "");
+	}
+
 	private static void addToGroup(String sheetName, String name, String phone, List<Group> groups) {
 		Group newGroup = new Group(sheetName, name, phone);
-		for( Group g : groups) {
+		for (Group g : groups) {
 			String n = g.name;
 			String p = g.phone;
-			if( n.equalsIgnoreCase(name) && p.equals(phone)) {
-				System.out.println("Duplicate name and phone -> "+g.toString()+" -> "+newGroup.toString());
+			if (n.equalsIgnoreCase(name) && p.equals(phone)) {
+				// System.out.println("Duplicate name and phone -> "+g.toString()+" ->
+				// "+newGroup.toString());
 				return;
 			}
-			if( n.equalsIgnoreCase(name)) {
-				System.out.println("Duplicate name only -> "+g.toString()+" -> "+newGroup.toString());
+			if (n.equalsIgnoreCase(name)) {
+				// System.out.println("Duplicate name only -> "+g.toString()+" ->
+				// "+newGroup.toString());
 				return;
 			}
-			if( p.equals(phone)) {
-				System.out.println("Duplicate phone only -> "+g.toString()+" -> "+newGroup.toString());
+			if (p.equals(phone)) {
+				// System.out.println("Duplicate phone only -> "+g.toString()+" ->
+				// "+newGroup.toString());
+				return;
+			}
+			if (phone.length() != 10) {
 				return;
 			}
 		}
+		// System.out.println(name+","+phone+","+sheetName);
 		groups.add(newGroup);
-		
+
 	}
 
 	public static String cleanPhone(String phone) {
 		String p = "";
-		for(char ch : phone.toCharArray()) {
-			if( Character.isDigit(ch)) {
-				p = p+ch;
+		for (char ch : phone.toCharArray()) {
+			if (Character.isDigit(ch)) {
+				p = p + ch;
 			}
 		}
 		return p;
 	}
 }
 
-class Group{
+class Group {
 	String theme;
 	String name;
 	String phone;
-	Group(String t, String name, String p){
+
+	Group(String t, String name, String p) {
 		this.theme = t;
 		this.name = name;
 		this.phone = p;
 	}
+
 	public String toString() {
-		return theme+","+name+","+phone;
+		return name + "," + phone + "," + theme;
 	}
+
+	// Comparator for sorting by name, then theme, then phone
+	public static Comparator<Group> GroupComparator = new Comparator<Group>() {
+		@Override
+		public int compare(Group g1, Group g2) {
+			// Compare by name first
+			int nameCompare = g1.name.compareTo(g2.name);
+			if (nameCompare != 0) {
+				return nameCompare;
+			}
+
+			// If names are equal, compare by theme
+			int themeCompare = g1.theme.compareTo(g2.theme);
+			if (themeCompare != 0) {
+				return themeCompare;
+			}
+
+			// If both names and themes are equal, compare by phone
+			return g1.phone.compareTo(g2.phone);
+		}
+	};
 }

@@ -1,3 +1,4 @@
+package job.postings;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -6,6 +7,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.StringTokenizer;
@@ -22,9 +24,16 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
+import com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest;
+import com.google.api.services.sheets.v4.model.CellData;
+import com.google.api.services.sheets.v4.model.ExtendedValue;
+import com.google.api.services.sheets.v4.model.GridCoordinate;
+import com.google.api.services.sheets.v4.model.Request;
+import com.google.api.services.sheets.v4.model.RowData;
+import com.google.api.services.sheets.v4.model.UpdateCellsRequest;
 import com.google.api.services.sheets.v4.model.ValueRange;
 
-public class SheetsQuickStart {
+public class JobPostingSpreadSheet {
 	private static final String APPLICATION_NAME = "Google Sheets API Java Quickstart";
 	private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
 	private static final String TOKENS_DIRECTORY_PATH = "tokens";
@@ -33,9 +42,19 @@ public class SheetsQuickStart {
 	 * Global instance of the scopes required by this quickstart. If modifying these
 	 * scopes, delete your previously saved tokens/ folder.
 	 */
-	private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS_READONLY);
+	// private static final List<String> SCOPES =
+	// Collections.singletonList(SheetsScopes.SPREADSHEETS);
+	private static final List<String> SCOPES = new ArrayList<String>(SheetsScopes.all());
+
 	// private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
-	static final String CREDENTIALS_FILE_PATH = VolunteerParser.CREDENTIALS_FILE_PATH;
+	// public static final String CREDENTIALS_FILE_PATH =
+	// "/Users/sivad/Downloads/client_secret_google.json";
+
+	// public static final String CREDENTIALS =
+	// "/Users/sivad/Downloads/client_secret_766426810034-i3l577ngunu8vs0j5f9v1jte4ekq9oum.apps.googleusercontent.com.json";
+
+	public static final String CREDENTIALS = "/Users/sivad/Downloads/client_secret_766426810034-tut5cbnb1ktomt9c169474307rh1gl1u.apps.googleusercontent.com.json";
+	static final String CREDENTIALS_FILE_PATH = CREDENTIALS;
 
 	/**
 	 * Creates an authorized Credential object.
@@ -48,7 +67,7 @@ public class SheetsQuickStart {
 		// Load client secrets.
 		// InputStream in =
 		// SheetsQuickStart.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
-		InputStream in = new FileInputStream(VolunteerParser.CREDENTIALS_FILE_PATH);
+		InputStream in = new FileInputStream(CREDENTIALS_FILE_PATH);
 		if (in == null) {
 			throw new FileNotFoundException("Resource not found: " + CREDENTIALS_FILE_PATH);
 		}
@@ -63,23 +82,66 @@ public class SheetsQuickStart {
 		return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
 	}
 
-	public static void main(String... args) throws Exception {
-		registrations(args);
+	static void writeExample(String spreadsheetId) throws Exception {
+
+		Sheets service = getSheetsService();
+		List<Request> requests = new ArrayList<>();
+
+		List<CellData> values = new ArrayList<>();
+
+		values.add(new CellData().setUserEnteredValue(new ExtendedValue().setStringValue("Hello World!")));
+		requests.add(new Request().setUpdateCells(
+				new UpdateCellsRequest().setStart(new GridCoordinate().setSheetId(0).setRowIndex(0).setColumnIndex(0))
+						.setRows(Arrays.asList(new RowData().setValues(values)))
+						.setFields("userEnteredValue,userEnteredFormat.backgroundColor")));
+
+		BatchUpdateSpreadsheetRequest batchUpdateRequest = new BatchUpdateSpreadsheetRequest().setRequests(requests);
+		service.spreadsheets().batchUpdate(spreadsheetId, batchUpdateRequest).execute();
 	}
 
-	public static void mainother(String... args) throws IOException, GeneralSecurityException {
-		// Build a new authorized API client service.
+	public static Sheets getSheetsService() throws Exception {
 		final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 		// String spreadsheetId = "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms";
 		// String spreadsheetId =
 		// "1-7kqYXHmKLudnKrjEIiu_iV96HNPEuwr/edit#gid=526196651";
 		// String spreadsheetId = "1wWYOG4IM9Rd_O_bSj7SUS-1FVDBZgY8sP06QNniIKG8";
+
+		Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+				.setApplicationName(APPLICATION_NAME).build();
+		return service;
+
+	}
+
+	public static void main(String... args) throws Exception {
+		// identifyRowAndTable();
+		String spreadsheetId = "1ZRyPXjuybQbnSnN_KTVRH_Fa0L0yPVKjVt-bbGDtiH4";
+		//writeExample(spreadsheetId);
+		readContentForJobPostings(spreadsheetId, "Sheet1");
+	}
+
+	public static List<List<Object>> readContentForJobPostings(String sheetId, String range) throws Exception {
+		Sheets sheets = getSheetsService();
+		// Build a new authorized API client service.
+		ValueRange response = sheets.spreadsheets().values().get(sheetId, range).execute();
+
+		List<List<Object>> values = response.getValues();
+		for (List row : values) {
+			for (Object o : row) {
+				System.out.println(o + ",");
+			}
+			System.out.println();
+		}
+		return response.getValues();
+
+	}
+
+	private static void identifyRowAndTable() throws Exception, IOException {
 		String spreadsheetId = "1fF1Qgj8hH0PjGHOqtvGaPuwXhREffgHdZzgcSVpPWqw";
 		// String range = "Class Data!A2:E";
 		String range = "Sheet1";
-		Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
-				.setApplicationName(APPLICATION_NAME).build();
-		ValueRange response = service.spreadsheets().values().get(spreadsheetId, range).execute();
+		Sheets sheets = getSheetsService();
+		// Build a new authorized API client service.
+		ValueRange response = sheets.spreadsheets().values().get(spreadsheetId, range).execute();
 		List<List<Object>> values = response.getValues();
 		if (values == null || values.isEmpty()) {
 			System.out.println("No data found.");
@@ -117,14 +179,13 @@ public class SheetsQuickStart {
 	 * Prints the names and majors of students in a sample spreadsheet:
 	 * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
 	 */
-	public static void registrations(String... args) throws IOException, GeneralSecurityException {
+	public static void mainOldest(String... args) throws IOException, GeneralSecurityException {
 		// Build a new authorized API client service.
 		final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 		// String spreadsheetId = "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms";
 		// String spreadsheetId =
 		// "1-7kqYXHmKLudnKrjEIiu_iV96HNPEuwr/edit#gid=526196651";
 		String spreadsheetId = "1wWYOG4IM9Rd_O_bSj7SUS-1FVDBZgY8sP06QNniIKG8";
-		spreadsheetId = "1iKsc8Pr0kGu8BB1t7Ft4xgQX7DB0ijAoQ5L4IcTRw0w";
 		// String range = "Class Data!A2:E";
 		String range = "Worksheet";
 		Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
@@ -221,7 +282,7 @@ public class SheetsQuickStart {
 		name = capitalize(name);
 		String email = st.nextToken().split("\\:")[1];
 		String phone = st.nextToken().split("\\:")[1];
-		phone = VolunteerParser.cleanPhone(phone);
+		// phone = phone;
 		Entry e = new Entry();
 		e.name = name;
 		e.phone = phone;
