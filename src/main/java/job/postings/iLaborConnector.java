@@ -98,7 +98,7 @@ public class iLaborConnector {
 		}
 
 		// Print response for debugging
-		printResponse(connection);
+		getResponse(connection);
 
 		// Capture and store session cookies
 		String sessionCookie = getSessionCookie(connection);
@@ -123,12 +123,12 @@ public class iLaborConnector {
 
 		// Set the session cookie in the request header
 		if (!sessionCookie.isEmpty()) {
-			System.out.println("Setting cookie -> " + sessionCookie);
+			//System.out.println("Setting cookie -> " + sessionCookie);
 			connection.setRequestProperty("Cookie", sessionCookie);
 		}
 
 		// Print response for debugging
-		return printResponse(connection);
+		return getResponse(connection);
 	}
 
 	private static String getSessionCookie(HttpURLConnection connection) {
@@ -156,11 +156,11 @@ public class iLaborConnector {
 			System.out.println(entry.getKey()+ " -> "+entry.getValue());
 		}
 	}
-	private static String printResponse(HttpURLConnection connection) throws Exception{
+	private static String getResponse(HttpURLConnection connection) throws Exception{
 		
 		//System.out.println(connection.getFollowRedirects()+" -> "+connection.getInstanceFollowRedirects());		
 		int responseCode = connection.getResponseCode();
-		System.out.println("Response Code: " + responseCode);
+		//System.out.println("Response Code: " + responseCode);
 		//displayResponseHeaders(connection);
 
 		BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
@@ -172,7 +172,7 @@ public class iLaborConnector {
 		}
 		in.close();
 
-		System.out.println("Response: " + response.toString());
+		//System.out.println("Response: " + response.toString());
 		return response.toString();
 	}
 }

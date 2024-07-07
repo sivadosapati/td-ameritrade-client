@@ -22,42 +22,44 @@ public class JobPostingManager {
 
 	public static void main(String[] x) throws Exception {
 		try {
-			// mainOld(x);
 			manageJobs();
+			//findRecruitersRejectingCandidates();
 
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-	public static void mainOldest(String[] args) throws Exception {
+	public static void findRecruitersRejectingCandidates() throws Exception {
+		String a = "https://vendor.ilabor360.com/fetchCandidateSubmissionListView?searchTerm=&requisitionId=0&startingDate=01-04-2024&endingDate=07-02-2024&page=1&pageSize=500&skip=0&take=500";
+		String url = "https://vendor.ilabor360.com/getSubmissionComment.action?candidateSubmissionId=";
+
 		String sessionCookie = getSessionCookie();
-		System.out.println(sessionCookie);
-		JobPostings latest = getLatestJobPostingsFromPortal(sessionCookie);
-		// JobPostings old = makeJobListingsFromGoogleSpreadsheet();
-		String latestFile = getLatestJobListingsSpreadSheetFile();
-		JobPostings old = createJobListingsFromSpreadSheet(latestFile);
-		System.out.println(latest.size());
-		System.out.println(old.size());
-		mergeJobPostings(old, latest);
-		System.out.println(old.size());
-		// List<String> jobs
+		String content = iLaborConnector.sendGetRequest(a, sessionCookie);
+		ObjectMapper mapper = new ObjectMapper();
+		CandidateSubmissionList list = mapper.readValue(content, CandidateSubmissionList.class);
+		for (CandidateEntry ce : list.candidateSubmissionListView) {
+			String id = ce.candidateSubmissionId;
+			String x = url + id;
+			String con = iLaborConnector.sendGetRequest(x, sessionCookie);
+			CandidateSubmissionComment csc = mapper.readValue(con, CandidateSubmissionComment.class);
+			CandidateSubmissionEntry comment = getFirstComment(csc);
+			if (comment != null) {
+				System.out.println(ce.candidateSubmissionId+","+ce.requisitionId+","+comment.commentBy.contact.fullName+","+comment.commentBy.userName+",\""+ce.lastComment+"\","+ce.lastCommentDate);
+			}
+			sleepForRandomSeconds(15);
+			
+		}
+		System.out.println("Done");
 
 	}
 
-	public static void mainOld(String[] args) throws Exception {
-
-		// System.out.println(jobPostings.iTotalRecords);
-		// JobPostings latestJobPostings = getLatestJobListings();
-		String sessionId = getSessionCookie();
-		JobPostings latestJobPostings = getLatestJobPostingsFromPortal(sessionId);
-
-		String file = getLatestJobListingsSpreadSheetFile();
-		JobPostings oldJobPostings = createJobListingsFromSpreadSheet(file);
-		mergeJobPostings(oldJobPostings, latestJobPostings);
-		writeJobPostings(oldJobPostings);
-		// writeJobPostings(oldJobPostings);
-		// writeJobPostings(jobPostings);
+	private static CandidateSubmissionEntry getFirstComment(CandidateSubmissionComment csc) {
+		List<CandidateSubmissionEntry> x = csc.listSubmissionComment;
+		if (x.size() == 0) {
+			return null;
+		}
+		return x.get(0);
 	}
 
 	public static String getSessionCookie() throws Exception {
@@ -87,14 +89,6 @@ public class JobPostingManager {
 
 	private static RuntimeException CODE_ME = new RuntimeException("CODE_ME");
 
-	public static JobPostings getLatestJobPostingsFromPortal(String sessionCookie) throws Exception {
-		String dataUrl1 = "https://vendor.ilabor360.com/showRequisitionViewList?searchTerm=&page=1&pageSize=500&skip=0&take=500";
-		String content = iLaborConnector.sendGetRequest(dataUrl1, sessionCookie);
-		return getJobPostings(content);
-		// dataUrl1 = "https://vendor.ilabor360.com/fetchRequisitionRecord?id=130148";
-
-	}
-
 	public static Job getJob(String jobId, String sessionCookie) throws Exception {
 		String dataUrl1 = "https://vendor.ilabor360.com/fetchRequisitionRecord?id=" + jobId;
 		String content = iLaborConnector.sendGetRequest(dataUrl1, sessionCookie);
@@ -105,7 +99,7 @@ public class JobPostingManager {
 
 	public static JobPostings makeJobListingsFromGoogleSpreadsheet() throws Exception {
 		// throw CODE_ME;
-		String latestFile = getLatestJobListingsSpreadSheetFile();
+		String latestFile = createUpldateJobListingsFromSpreadsheet();
 		JobPostings old = createJobListingsFromSpreadSheet(latestFile);
 		return old;
 	}
@@ -169,26 +163,44 @@ public class JobPostingManager {
 
 	static String JOB_DIRECTORY = Util.getDirectoryForJobs();
 
+	private static JobPostings getLatestJobPostings(String sessionCookie) throws Exception {
+
+		String dataUrl1 = "https://vendor.ilabor360.com/showRequisitionViewList?searchTerm=&page=1&pageSize=500&skip=0&take=500";
+		String content = iLaborConnector.sendGetRequest(dataUrl1, sessionCookie);
+
+		return getJobPostings(content);
+	}
+
 	public static void manageJobs() throws Exception {
-		String sessionId = getSessionCookie();
-		JobPostings latest = getLatestJobPostingsFromPortal(sessionId);
+		String sessionCookie = getSessionCookie();
+		JobPostings latest = getLatestJobPostings(sessionCookie);
+		// System.out.println("Some Job from source ->
+		// "+latest.getJobPosting("130989"));
 		JobPostings old = makeJobListingsFromGoogleSpreadsheet();
 		mergeJobPostings(old, latest);
+		writeJobPostings(old);
+		// System.out.println("Some Job -> "+old.getJobPosting("130989"));
 		List<String> jobsHavingJDs = getJobsWhoHaveJDInGoogleDrive();
-		System.out.println(jobsHavingJDs);
+		// System.out.println(jobsHavingJDs);
 		List<String> jobsThatNeedJDs = findJobsThatNeedTobCrawled(jobsHavingJDs, old);
 		for (String x : jobsThatNeedJDs) {
-			Job job = getJob(x, sessionId);
+			Job job = getJob(x, sessionCookie);
 			File f = writeJobPostingToGoogleDrive(job);
 			if (f == null)
 				continue;
 			System.out.println("Wrote JD for -> " + f.getAbsolutePath());
-			int xx = getRandom(60);
-			System.out.println("Sleeping for -> " + xx);
-			Thread.sleep(xx * 1000);
+			int xx = sleepForRandomSeconds(60);
 			// return;
 		}
+		System.out.println("Done");
 
+	}
+
+	private static int sleepForRandomSeconds(int x) throws InterruptedException {
+		int xx = getRandom(x);
+		//System.out.println("Sleeping for -> " + xx);
+		Thread.sleep(xx * 1000);
+		return xx;
 	}
 
 	private static int getRandom(int x) {
@@ -239,12 +251,7 @@ public class JobPostingManager {
 		PrintWriter writer = new PrintWriter(new FileWriter("jobs.csv"), true);
 		writer.print(output);
 		writer.close();
-	}
-
-	private static JobPostings getLatestJobListings() throws Exception {
-		String content = getJobPostingContent();
-		// System.out.println(content);
-		return getJobPostings(content);
+		System.out.println("Jobs.csv is written with -> " + jobPostings.size() + " records");
 	}
 
 	private static JobPostings getJobPostings(String content) throws JsonProcessingException, JsonMappingException {
@@ -276,14 +283,14 @@ public class JobPostingManager {
 
 	}
 
-	private static String getLatestJobListingsSpreadSheetFile() {
+	private static String createUpldateJobListingsFromSpreadsheet() {
 
 		File dir = new File(System.getProperty("user.home") + "/Downloads/");
 		File ff[] = dir.listFiles();
 		File file = null;
 		for (File f : ff) {
 			String name = f.getName();
-			if (name.startsWith("Job Requirements - Sheet1")) {
+			if (name.startsWith("Job Requirements - ")) {
 
 				if (file == null) {
 					file = f;
@@ -296,28 +303,6 @@ public class JobPostingManager {
 			}
 		}
 		return file.getAbsolutePath();
-	}
-
-	private static JobPostingContent jpc = new JobPostingContentFromFlatFile();
-
-	private static String getJobPostingContent() throws Exception {
-		return jpc.getContent();
-
-	}
-
-}
-
-interface JobPostingContent {
-	String getContent() throws Exception;
-}
-
-class JobPostingContentFromFlatFile implements JobPostingContent {
-
-	String file = "jobs.json";
-
-	@Override
-	public String getContent() throws Exception {
-		return Util.readContent(file);
 	}
 
 }

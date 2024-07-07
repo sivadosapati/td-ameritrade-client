@@ -164,7 +164,7 @@ public class JobPosting {
 	}
 
 	private Double computeRate() {
-		Double x = c2crate * 0.8;
+		Double x = c2crate * 0.8 ;
 		x = Math.floor(x);
 		while (true) {
 			if (x % 5 == 0) {
